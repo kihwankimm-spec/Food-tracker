@@ -1,13 +1,10 @@
-MEXICO FUEL - calorie counter (standalone)
+MEXICO FUEL - update (set meals, favorites, recipes, editable values, yogurt brands)
 
-Files: index.html, manifest.json, sw.js, icon-180.png, icon-192.png, icon-512.png
-Keep all six together.
+TO UPDATE YOUR APP ON GITHUB
+1. Open github.com/kihwankimm-spec/Food-tracker
+2. Add file > Upload files
+3. Drag in index.html and sw.js (same names, they replace the old ones)
+4. Commit changes
+5. Wait 1-2 minutes. On your iPhone, open the app, close it fully, open it again.
 
-SETUP (same as the lifting app, but a NEW repository)
-1. GitHub: create a new Public repository named: fuel
-2. On github.com: Add file > Upload files > pick all six files > Commit changes
-3. Settings > Pages > Deploy from a branch > main, / (root) > Save
-4. On iPhone, open https://YOUR-USERNAME.github.io/Food-tracker/ in Safari
-5. Share > Add to Home Screen
-
-BACK UP WEEKLY: gear icon > Save backup file > Save to Files (iCloud Drive).
+Your diary, custom foods and saved meals are not touched by updating.

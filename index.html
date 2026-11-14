@@ -181,11 +181,28 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .en{font-weight:600;line-height:1.25}
 .ek{display:flex;flex-direction:column;align-items:flex-end;white-space:nowrap}
 .ek b{font-size:22px;line-height:1}
+.frow{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--line)}
+.frow:last-child{border-bottom:0}
+.frow .erow{flex:1;min-width:0;border-bottom:0}
+.ib{flex:none;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:15px;color:var(--phase)}
+.star{flex:none;width:34px;height:40px;font-size:22px;line-height:1;color:var(--muted);display:grid;place-items:center}
+.star.on{color:var(--warn)}
+.star.big{width:44px;height:44px;font-size:28px;border-radius:12px;background:var(--surface-2)}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.tg{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;background:var(--surface-2);color:var(--muted)}
+.tg.ok{background:rgba(91,201,139,.15);color:var(--good)}
+.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bar.thin{height:5px}
 .search{width:100%;height:50px;border-radius:14px;border:1px solid var(--line);background:var(--surface);padding:0 14px;font-size:17px}
 .chips{gap:8px;overflow-x:auto;margin:12px -12px 0;padding:0 12px 4px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chipb{flex:none;padding:8px 14px;border-radius:999px;background:var(--surface);font-weight:600;font-size:14px;color:var(--muted);white-space:nowrap}
-.chipb.on{background:var(--phase);color:var(--phase-ink)}
+.chipb.sm{padding:6px 12px;font-size:13px;background:transparent;border:1px solid var(--line)}
+.chipb.on{background:var(--phase);color:var(--phase-ink);border-color:transparent}
+#addsubs .chips{display:flex}
+.guide h3{font-family:var(--display);font-size:20px;font-weight:700;margin:16px 0 6px}
+.guide ol,.guide ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+.guide li{line-height:1.4}
 .ta{width:100%;height:200px;border-radius:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);padding:10px;font-size:13px}
 button.sync{font-size:12px}
 </style>
@@ -215,6 +232,16 @@ const F = [
  ["Egg, whole","계란","staples",143,12.6,0.7,9.5,[["1 large egg",50],["2 eggs",100],["3 eggs",150]]],
  ["Whey protein powder","","staples",387,77,10,5,[["1 scoop",31],["2 scoops",62]]],
  ["Greek yogurt, 0%","","staples",59,10.3,3.6,0.4,[["3/4 cup",175],["1 cup",245],["200 g",200]]],
+ // ---- Yogurt brands (Canadian labels, per 175 g serving unless noted)
+ ["Oikos Pro plain 0% (high protein)","","dairy",57,10.9,3.7,0,[["3/4 cup",175],["1 cup",230],["Half cup",115]]],
+ ["Oikos Pro vanilla 0% (high protein)","","dairy",57,10.3,4,0,[["3/4 cup",175],["1 cup",230],["Half cup",115]]],
+ ["Oikos 0% plain Greek","","dairy",57,9.7,3.4,0,[["3/4 cup",175],["1 cup",230]]],
+ ["Oikos 0% vanilla, less sugar (was Triple Zero)","","dairy",70,8,9.5,0,[["1 cup (100 g)",100],["3/4 cup",175]],1],
+ ["Oikos plain 11% (rich)","","dairy",137,5.1,5.1,10.9,[["3/4 cup",175],["Half cup",115]]],
+ ["Skotidakis 0% plain Greek","","dairy",69,10.3,6.9,0,[["3/4 cup",175],["1 cup",230],["Half cup",115]]],
+ ["Skotidakis 0% vanilla Greek","","dairy",91,10.3,13.1,0,[["3/4 cup",175],["Half cup",115]],1],
+ ["Skotidakis 0% strawberry Greek","","dairy",91,8.5,14.3,0,[["3/4 cup",175],["Half cup",115]],1],
+ ["Granola","","carbs",450,10,65,16,[["1/4 cup",30],["Half cup",60]],1],
  // ---- Pasta + sauces
  ["Marinara / tomato sauce","","pasta",50,1.5,8,1.5,[["Half cup",125],["1/4 cup",60]]],
  ["Pesto","","pasta",480,5,5,48,[["1 tbsp",15],["2 tbsp",30]]],
@@ -353,7 +380,126 @@ const F = [
  ["Burrito bowl (chicken, rice, beans)","","out",130,8.5,14,4.2,[["1 bowl",500]],1],
  ["Donkatsu","돈까스","out",270,15,17,16,[["1 cutlet",200]],1]
 ];
-const CATS=[["recent","Recent"],["staples","My staples"],["meals","Meals"],["korean","Korean"],["pasta","Pasta"],["protein","Protein"],["carbs","Carbs + fruit"],["veg","Veg"],["fats","Fats"],["drinks","Snacks + drinks"],["out","Eating out"],["mine","My foods"]];
+const CATS=[["favs","\u2605 Favorites"],["recent","Recent"],["set","Set meals"],["build","Build-a-meal"],["staples","My staples"],["dairy","Yogurt"],["korean","Korean"],["pasta","Pasta"],["protein","Protein"],["carbs","Carbs + fruit"],["veg","Veg"],["fats","Fats"],["drinks","Snacks + drinks"],["out","Eating out"],["mine","My foods"]];
+/* ===================== SET MEALS =====================
+   One tap logs the whole meal as a single entry.
+   [name, korean, type, slots (B L D S), kcal, protein, carbs, fat, what's in it, estimate?, recipe key] */
+const SETMEALS=[
+ ["Kimchi jjigae set","김치찌개 정식","korean","LD",580,26,77,19,"Kimchi jjigae (1 bowl), rice (1 bowl), kkakdugi, spinach namul",1,"Kimchi jjigae (pork + tofu)"],
+ ["Doenjang jjigae set","된장찌개 정식","korean","LD",500,22,79,11,"Doenjang jjigae (1 bowl), rice (1 bowl), bean sprout namul",1,"Doenjang jjigae"],
+ ["Sundubu jjigae set","순두부찌개 정식","korean","LD",535,26,73,14,"Sundubu jjigae (1 bowl), rice (1 bowl), kimchi",1,"Sundubu jjigae"],
+ ["Bulgogi set","불고기 정식","korean","LD",570,32,74,16,"Bulgogi (150 g), rice (1 bowl), kimchi, lettuce",1,"Bulgogi (beef)"],
+ ["Jeyuk deopbap","제육덮밥","korean","LD",590,28,74,18,"Spicy pork (150 g) over 1 bowl of rice",1,"Jeyuk bokkeum (spicy pork)"],
+ ["Dakgalbi + rice","닭갈비","korean","LD",650,40,82,15,"Dakgalbi (1 serving), rice (1 bowl)",1,"Dakgalbi"],
+ ["Bibimbap","비빔밥","korean","LD",600,25,85,18,"Rice, beef, namul, fried egg, gochujang, sesame oil",1,"Bibimbap (egg + beef)"],
+ ["Kimchi fried rice + egg","김치볶음밥","korean","LD",670,22,84,26,"Kimchi fried rice (1 plate), fried egg",1,"Kimchi fried rice"],
+ ["Tteokbokki + boiled egg","떡볶이","korean","LDS",520,17,90,9,"Tteokbokki (1 serving), 1 boiled egg",1,"Tteokbokki"],
+ ["Ramyun + egg","라면","korean","LDS",580,16,79,21,"1 pack ramyun with soup, 1 egg",0,"Ramyun + egg"],
+ ["Kimbap + ramyun","김밥 라면","korean","L",910,22,147,26,"1 kimbap roll, 1 pack ramyun",1,"Kimbap"],
+ ["Galbitang + rice","갈비탕","korean","LD",675,41,72,24,"Galbitang (1 bowl), rice (1 bowl)",1,""],
+ ["Samgyeopsal night","삼겹살","korean","D",1000,45,39,71,"Pork belly (200 g cooked), lettuce wraps, ssamjang, half bowl rice, kimchi",1,""],
+ ["Korean breakfast","한식 아침","korean","B",340,15,35,15,"Half bowl rice, gyeran mari, kimchi, seasoned gim",1,"Gyeran mari (rolled omelette)"],
+ ["Chicken aglio olio","","pasta","LD",700,45,68,28,"85 g dry pasta, 140 g rotisserie chicken, 1 tbsp olive oil, garlic, parmesan",0,"Chicken aglio olio"],
+ ["Chicken pesto pasta","","pasta","LD",640,46,66,20,"85 g dry pasta, 140 g rotisserie breast, 2 tbsp pesto",0,"Chicken pesto pasta"],
+ ["Chicken tomato pasta","","pasta","LD",670,46,75,21,"85 g dry pasta, 140 g rotisserie chicken, half cup marinara, 1 tsp olive oil, parmesan",0,"Chicken tomato pasta"],
+ ["Light chicken pasta","","pasta","LD",480,49,44,10,"56 g dry pasta, 170 g rotisserie breast, 1 tsp olive oil, spinach",0,"Light chicken pasta"],
+ ["Gochujang chicken pasta","","pasta","LD",725,44,77,27,"85 g dry pasta, 140 g rotisserie chicken, gochujang, 1 tbsp olive oil, garlic",0,"Gochujang chicken pasta"],
+ ["Creamy chicken alfredo","","pasta","D",725,44,70,30,"85 g dry pasta, 140 g rotisserie chicken, half cup alfredo sauce",0,"Creamy chicken alfredo"],
+ ["Spaghetti bolognese","","pasta","LD",600,29,79,18,"85 g dry pasta, 1 cup meat sauce, parmesan",1,"Spaghetti bolognese"],
+ ["Oikos Pro yogurt bowl","","breakfast","BS",290,23,41,5,"175 g Oikos Pro plain, half cup berries, 30 g granola, 1 tsp honey",0,"Oikos Pro yogurt bowl"],
+ ["Eggs on toast","","breakfast","B",370,22,34,16,"2 eggs, 2 slices whole-grain toast, 1 tsp butter",0,""],
+ ["Oats + whey + banana","","breakfast","B",375,31,57,5,"40 g oats, 1 scoop whey, 1 banana",0,"Oats + whey + banana"],
+ ["Egg white omelette + toast","","breakfast","B",290,34,21,7,"200 ml egg whites, 1 egg, vegetables, 1 slice toast",0,"Egg white omelette + toast"],
+ ["Protein shake + banana","","breakfast","BS",330,34,43,5,"1 scoop whey, 250 ml 1% milk, 1 banana",0,""],
+ ["Rotisserie chicken rice plate","","protein","LD",605,47,72,15,"170 g rotisserie chicken, 1 bowl rice, 1 cup broccoli",0,""],
+ ["Chicken salad bowl","","protein","LD",430,36,9,28,"140 g rotisserie breast, 2 cups greens, half avocado, 1 tbsp olive oil, lemon",0,""],
+ ["Tuna rice bowl","참치 덮밥","protein","LD",495,38,63,9,"1 can tuna, 1 bowl rice, 1 tsp sesame oil, gim, kimchi",0,"Tuna rice bowl"],
+ ["Oikos Pro + whey","","protein","BS",220,43,10,2,"175 g Oikos Pro plain mixed with 1 scoop whey",0,""],
+ ["Post-workout shake","","protein","S",225,25,30,2,"1 scoop whey in water, 1 banana",0,""],
+ ["Chimaek: half chicken + 2 beers","치맥","out","D",1290,70,68,60,"Half order Korean fried chicken, 2 cans beer",1,""],
+ ["Korean BBQ restaurant","고기집","out","D",1400,70,60,95,"Mixed meats, banchan, rice, 2 soju shots. Varies a lot.",1,""],
+ ["Sushi combo","","out","LD",575,26,80,15,"California roll (8 pieces), 6 salmon nigiri",1,""],
+ ["Apple + peanut butter","","snack","S",190,4,28,8,"1 apple, 1 tbsp peanut butter",0,""],
+ ["Greek yogurt + berries","","snack","BS",135,20,15,0,"175 g Oikos Pro plain, half cup berries",0,""],
+ ["Banana milk + gim","","snack","S",240,8,32,9,"1 bottle banana milk, 1 gim snack pack",0,""],
+ ["Cottage cheese + grapes","","snack","S",200,13,32,3,"Half cup 2% cottage cheese, 1 cup grapes",0,""]
+];
+const SETTYPES=[["all","All"],["korean","Korean"],["pasta","Pasta"],["breakfast","Breakfast"],["protein","High protein"],["out","Eating out"],["snack","Snacks"]];
+
+/* ===================== RECIPES =====================
+   Typical home versions. Your recipe may differ: use Edit values to match it. */
+const RECIPES={
+ "Kimchi jjigae (pork + tofu)":{s:"Serves 2",i:["1.5 cups well-fermented kimchi, chopped, plus a splash of its juice","150 g pork shoulder or belly, sliced","Half block firm tofu, cubed","Half onion, 1 green onion","1 tbsp gochugaru, 1 tsp gochujang","1 tsp sesame oil","2.5 cups water or anchovy stock"],
+  st:["Fry the pork in sesame oil until it browns.","Add kimchi and gochugaru, stir-fry 3 to 4 minutes.","Add water, kimchi juice, gochujang and onion. Simmer 15 minutes.","Add tofu and green onion, simmer 5 more minutes."],n:"Lighter: pork loin or canned tuna instead of belly."},
+ "Doenjang jjigae":{s:"Serves 2",i:["2 tbsp doenjang","2.5 cups anchovy stock or water","Half zucchini, half onion, 1 small potato","Half block tofu, 4 to 5 mushrooms","1 green chili, 1 green onion","1 tsp gochugaru (optional)"],
+  st:["Dissolve doenjang in the stock and bring to a boil.","Add potato and onion, simmer 5 minutes.","Add zucchini, mushrooms and tofu, simmer 5 to 7 minutes.","Finish with chili and green onion."]},
+ "Sundubu jjigae":{s:"Serves 2",i:["1 tube soft tofu","100 g pork or seafood","Half onion","1 tbsp gochugaru, 1 tsp minced garlic","1 tsp soy sauce, 1 tsp sesame oil","1.5 cups stock","1 egg"],
+  st:["Make chili oil: gochugaru, sesame oil and garlic over low heat for 1 minute.","Add pork and onion, cook 2 minutes.","Add stock and soy sauce, bring to a boil.","Spoon in the soft tofu in big chunks, simmer 5 minutes.","Crack an egg on top just before serving."]},
+ "Budae jjigae":{s:"Serves 2 to 3",i:["Half can Spam, 2 sausages, sliced","1 pack ramyun noodles","1 cup kimchi, half block tofu, half onion","1 slice cheese","Sauce: 1 tbsp gochugaru, 1 tbsp gochujang, 1 tbsp soy sauce, 1 tsp garlic","3 cups stock"],
+  st:["Arrange everything except noodles and cheese in a wide pot.","Add the sauce and stock, boil 8 minutes.","Add noodles, cook 3 minutes, top with cheese."],n:"Most of the calories come from the Spam, sausage and noodles."},
+ "Miyeokguk (beef seaweed soup)":{s:"Serves 3",i:["15 g dried miyeok (seaweed)","150 g beef brisket or round, sliced","1 tbsp sesame oil","1 tbsp soup soy sauce, 1 tsp garlic","6 cups water"],
+  st:["Soak the seaweed 20 minutes, drain and cut.","Saute beef in sesame oil 2 minutes, add seaweed, 2 minutes more.","Add water, soy sauce and garlic. Simmer 20 to 30 minutes.","Season with salt."]},
+ "Kongnamul guk (bean sprout soup)":{s:"Serves 3",i:["200 g bean sprouts","5 cups anchovy stock","1 tsp garlic, 1 green onion","Salt or fish sauce, gochugaru (optional)"],
+  st:["Boil the sprouts in stock with the lid on for 5 minutes. Do not open early.","Add garlic and season.","Add green onion and serve."]},
+ "Bulgogi (beef)":{s:"Serves 3",i:["500 g thinly sliced beef (sirloin or ribeye)","Half onion, 2 green onions","4 tbsp soy sauce, 1.5 tbsp sugar","1 tbsp sesame oil, 1 tbsp garlic","Half Asian pear, grated, black pepper"],
+  st:["Mix the marinade, add beef and onion, rest at least 30 minutes.","Cook in a hot pan in batches until caramelized."],n:"Lighter: sirloin and 1 tbsp sugar."},
+ "Jeyuk bokkeum (spicy pork)":{s:"Serves 3",i:["500 g pork shoulder or loin, thinly sliced","Half onion, 1 carrot, 2 green onions","2 tbsp gochujang, 1 tbsp gochugaru","2 tbsp soy sauce, 1 tbsp sugar","1 tbsp garlic, 1 tbsp sesame oil, a little ginger"],
+  st:["Mix the sauce and coat the pork. Marinate 20 minutes.","Stir-fry the pork on high heat 5 to 6 minutes.","Add the vegetables and cook until tender."],n:"Lighter: pork loin instead of shoulder."},
+ "Dakgalbi":{s:"Serves 3",i:["600 g boneless chicken thigh","2 cups cabbage, half sweet potato, half onion","200 g rice cakes (optional), perilla leaves","3 tbsp gochujang, 2 tbsp gochugaru, 2 tbsp soy sauce","1 tbsp sugar, 1 tbsp garlic, 1 tsp curry powder"],
+  st:["Marinate the chicken in the sauce for 30 minutes.","Cook cabbage, sweet potato and onion in a wide pan with a little oil.","Add the chicken and stir-fry 10 to 12 minutes until cooked through.","Optional: fry leftover rice in the pan at the end."]},
+ "Dakbokkeumtang (spicy braised chicken)":{s:"Serves 3",i:["1 kg chicken pieces","2 potatoes, 1 carrot, 1 onion","3 tbsp gochugaru, 2 tbsp gochujang","4 tbsp soy sauce, 1 tbsp sugar, 2 tbsp garlic","2 cups water"],
+  st:["Blanch the chicken 3 minutes and drain.","Add chicken, sauce and water to a pot, boil 15 minutes.","Add potatoes and carrot, simmer 15 minutes.","Add onion and green onion, simmer 5 minutes."],n:"Lighter: remove the skin first."},
+ "Bibimbap (egg + beef)":{s:"Serves 1",i:["1 bowl cooked rice","50 g beef, bulgogi-style","About 1 cup spinach, bean sprouts, carrot, zucchini, mushrooms","1 fried egg","1 tbsp gochujang, 1 tsp sesame oil"],
+  st:["Season and quickly cook each vegetable.","Cook the beef with soy sauce, garlic and a little sugar.","Arrange over the rice, top with the egg.","Mix with gochujang and sesame oil."]},
+ "Kimchi fried rice":{s:"Serves 1",i:["1 bowl cooked rice (day-old is best)","Half cup kimchi, chopped","50 g Spam or pork","1 tsp gochugaru, 1 tsp soy sauce","1 tbsp oil, 1 tsp sesame oil","1 egg"],
+  st:["Fry the Spam or pork in oil.","Add kimchi and cook 3 minutes.","Add rice, gochugaru and soy sauce, stir-fry until hot.","Finish with sesame oil and top with a fried egg."],n:"Most of the calories come from the oil and Spam."},
+ "Kimbap":{s:"Makes 2 rolls",i:["2 bowls rice, seasoned with 1 tsp sesame oil and salt","2 sheets gim","2 eggs, made into a thin omelette and cut in strips","Carrot strips, spinach, danmuji (yellow radish)","2 strips ham or imitation crab"],
+  st:["Season the rice.","Cook the fillings.","Spread rice over two thirds of the gim, line up the fillings, roll tightly.","Brush with sesame oil and slice."]},
+ "Tteokbokki":{s:"Serves 2",i:["400 g rice cakes","1 sheet fish cake","2 cups anchovy stock","2 tbsp gochujang, 1 tbsp gochugaru","1 tbsp sugar or corn syrup, 1 tbsp soy sauce","Green onion, 2 boiled eggs (optional)"],
+  st:["Soak hard rice cakes for 10 minutes.","Bring the stock and sauce ingredients to a boil.","Add rice cakes and fish cake. Simmer 8 to 10 minutes, stirring, until the sauce thickens.","Add green onion and eggs."],n:"Calories vary a lot: 450 to 600 kcal a serving depending on the rice cakes and sugar. If yours runs higher, tap Edit values."},
+ "Japchae":{s:"Serves 4",i:["200 g dangmyeon (sweet potato noodles)","150 g beef strips","Spinach, carrot, onion, mushrooms","4 tbsp soy sauce, 2 tbsp sugar","2 tbsp sesame oil, 1 tbsp garlic, sesame seeds"],
+  st:["Cook the noodles 6 minutes, drain and cut.","Stir-fry the beef and each vegetable separately.","Toss everything together with the sauce."],n:"Most of the calories come from the noodles and sesame oil."},
+ "Gyeran mari (rolled omelette)":{s:"Serves 2",i:["4 eggs","2 tbsp each finely chopped carrot, onion, green onion","Salt, 1 tsp oil"],
+  st:["Beat the eggs with the vegetables and salt.","Pour a thin layer into an oiled pan over low heat.","When nearly set, roll it to one side, pour more egg, and repeat.","Rest 2 minutes, then slice."]},
+ "Gyeran jjim (steamed egg)":{s:"Serves 2",i:["3 eggs","3/4 cup water or stock","Green onion, salt or fish sauce"],
+  st:["Whisk the eggs with water and salt.","Pour into a small pot. Cook covered on low 8 to 10 minutes, stirring only for the first 2 minutes, until puffed."]},
+ "Dubu jorim (braised tofu)":{s:"Serves 3",i:["1 block firm tofu, sliced","3 tbsp soy sauce, 1 tbsp gochugaru","1 tsp sugar, 1 tsp garlic, 1 tsp sesame oil","1/3 cup water, green onion"],
+  st:["Pan-fry the tofu slices in a little oil until golden.","Pour the sauce over and simmer until it is absorbed."]},
+ "Sigeumchi namul (spinach)":{s:"Serves 3",i:["1 bunch spinach","1 tsp soy sauce, 1 tsp sesame oil","Half tsp garlic, sesame seeds, salt"],
+  st:["Blanch 30 seconds, rinse in cold water, squeeze dry.","Toss with the seasoning."]},
+ "Kongnamul muchim (bean sprouts)":{s:"Serves 3",i:["200 g bean sprouts","1 tsp sesame oil, half tsp garlic","Salt, green onion, gochugaru (optional)"],
+  st:["Boil the sprouts 4 minutes with the lid on, then drain.","Toss with the seasoning."]},
+ "Samgyetang":{s:"Serves 1 to 2",i:["1 small whole chicken (Cornish hen)","1/3 cup sweet rice, soaked","4 garlic cloves, 2 jujubes, 1 small ginseng root","Green onion, salt and pepper"],
+  st:["Stuff the chicken with rice, garlic, jujubes and ginseng.","Cover with water and boil 1 hour.","Season at the table."],n:"Lighter: skip the skin."},
+ "Pajeon / kimchi jeon":{s:"Makes 2 pancakes",i:["1 cup flour or Korean pancake mix","3/4 cup cold water","1 cup chopped kimchi or green onion","2 tbsp oil","Dipping sauce: soy sauce and vinegar"],
+  st:["Mix the batter and fold in the fillings.","Fry in oil over medium-high heat until crisp on both sides."],n:"The frying oil is a big share of the calories."},
+ "Ramyun + egg":{s:"Serves 1",i:["1 pack ramyun","550 ml water","1 egg","Green onion (optional)"],
+  st:["Boil the water, add soup powder and noodles.","Cook 4 to 5 minutes. Crack the egg in at about 3 minutes.","Add green onion."],n:"Using half the soup packet cuts the sodium a lot but barely changes the calories. The noodles are fried, which is where most of the calories are."},
+ "Tuna rice bowl":{s:"Serves 1",i:["1 can tuna in water, drained","1 bowl rice","1 tsp sesame oil, a little soy sauce","1 gim snack pack, crumbled","Kimchi on the side"],
+  st:["Put the tuna on hot rice.","Drizzle with sesame oil and soy sauce, top with gim.","Serve with kimchi."],n:"Adding 1 tbsp mayo (classic chamchi mayo) adds about 95 kcal."},
+ "Chicken aglio olio":{s:"Serves 1",i:["85 g dry spaghetti","140 g Costco rotisserie chicken, pulled","1 tbsp olive oil","3 garlic cloves, sliced, chili flakes","1 tbsp parmesan, parsley"],
+  st:["Cook the pasta. Save half a cup of the water.","Warm the oil with garlic and chili on low until the garlic is golden.","Add chicken and pasta, toss with a splash of pasta water.","Top with parmesan."],n:"Measure the oil. Each extra tablespoon adds about 120 kcal."},
+ "Chicken pesto pasta":{s:"Serves 1",i:["85 g dry pasta","140 g rotisserie chicken breast, no skin","2 tbsp pesto","Cherry tomatoes, a handful of spinach"],
+  st:["Cook the pasta.","Toss with pesto, chicken, tomatoes and spinach, loosening with pasta water."]},
+ "Chicken tomato pasta":{s:"Serves 1",i:["85 g dry pasta","140 g rotisserie chicken","Half cup marinara","1 tsp olive oil, garlic, basil","1 tbsp parmesan"],
+  st:["Saute garlic in the oil, add marinara and chicken, simmer 5 minutes.","Toss with the pasta and top with parmesan."]},
+ "Light chicken pasta":{s:"Serves 1",i:["56 g dry pasta","170 g rotisserie chicken breast, no skin","1 tsp olive oil, garlic","2 cups spinach","Lemon, chili flakes"],
+  st:["Cook the pasta.","Saute garlic in oil, wilt the spinach, add chicken.","Toss with pasta, lemon and chili."],n:"Good choice for weeks 11 to 14 when calories are lowest."},
+ "Gochujang chicken pasta":{s:"Serves 1",i:["85 g dry pasta","140 g rotisserie chicken","1 tbsp gochujang, 1 tsp soy sauce","1 tbsp olive oil, 3 garlic cloves","1 tsp honey (optional), green onion, sesame seeds"],
+  st:["Saute garlic in the oil.","Add gochujang, soy sauce, honey and a splash of pasta water to make a sauce.","Toss with pasta and chicken. Top with green onion and sesame seeds."]},
+ "Creamy chicken alfredo":{s:"Serves 1",i:["85 g dry pasta","140 g rotisserie chicken","Half cup alfredo sauce","Broccoli"],
+  st:["Cook the pasta and broccoli together.","Toss with the warmed sauce and chicken."],n:"Swap half the sauce for Oikos plain yogurt to cut about 90 kcal."},
+ "Spaghetti bolognese":{s:"Serves 4",i:["340 g dry spaghetti","500 g lean ground beef","1 jar marinara (650 ml)","1 onion, 2 garlic cloves, 1 carrot","1 tbsp olive oil, parmesan"],
+  st:["Brown the beef in oil, drain any fat.","Add onion, garlic and carrot, cook 5 minutes.","Add marinara, simmer 20 minutes.","Serve over the pasta with parmesan."]},
+ "Oikos Pro yogurt bowl":{s:"Serves 1",i:["175 g Oikos Pro plain (3/4 cup)","Half cup berries","30 g granola","1 tsp honey"],
+  st:["Spoon yogurt into a bowl.","Top with berries, granola and honey."],n:"Granola is calorie dense. Measure it."},
+ "Oats + whey + banana":{s:"Serves 1",i:["40 g oats","1 scoop whey","1 banana","Cinnamon"],
+  st:["Cook the oats with water.","Take off the heat and stir in the whey so it doesn't clump.","Top with sliced banana and cinnamon."]},
+ "Egg white omelette + toast":{s:"Serves 1",i:["200 ml egg whites","1 whole egg","Spinach, mushrooms, peppers","1 slice whole-grain toast"],
+  st:["Cook the vegetables in a non-stick pan.","Pour in the eggs, cook until set, fold.","Serve with toast."]}
+};
+const RECALIAS={"Bolognese / meat sauce":"Spaghetti bolognese","Kimchi jjigae set":"Kimchi jjigae (pork + tofu)"};
+
 const PRESETS=[
  ["Chicken olive oil pasta",[["Pasta, dry (weigh before cooking)",85],["Costco rotisserie chicken (mixed, with skin)",140],["Olive oil",13.5],["Garlic",9],["Parmesan, grated",5]]],
  ["Chicken pesto pasta",[["Pasta, dry (weigh before cooking)",85],["Costco rotisserie chicken breast (no skin)",140],["Pesto",15]]],
@@ -386,17 +532,25 @@ function niceDate(s){const t=ymd(new Date());if(s===t)return "Today";if(s===addD
 
 /* ===================== STATE ===================== */
 const S={tab:"today",date:ymd(new Date()),
-  settings:Object.assign({start:"2026-11-16",mode:"auto",custom:[2300,175,255,65]},lsGet("cc_settings",{})),
+  settings:Object.assign({start:"2026-11-16",mode:"auto",custom:[2300,175,255,65],split:[25,30,30,15]},lsGet("cc_settings",{})),
   log:lsGet("cc_log",{}), foods:lsGet("cc_foods",[]), meals:lsGet("cc_meals",[]),
+  favs:lsGet("cc_favs",[]), over:lsGet("cc_over",{}),
   add:null, amt:null};
-const save={log(){lsSet("cc_log",S.log);},foods(){lsSet("cc_foods",S.foods);},meals(){lsSet("cc_meals",S.meals);},settings(){lsSet("cc_settings",S.settings);}};
+const save={log(){lsSet("cc_log",S.log);},foods(){lsSet("cc_foods",S.foods);},meals(){lsSet("cc_meals",S.meals);},settings(){lsSet("cc_settings",S.settings);},favs(){lsSet("cc_favs",S.favs);},over(){lsSet("cc_over",S.over);}};
 
-function allFoods(){
+function baseFoods(){
   return F.map(f=>({id:f[0],name:f[0],kr:f[1],cat:f[2],k:f[3],p:f[4],c:f[5],f:f[6],sv:f[7],est:!!f[8]}))
+    .concat(SETMEALS.map(m=>({id:m[0],name:m[0],kr:m[1],cat:"set",type:m[2],slots:m[3],k:m[4],p:m[5],c:m[6],f:m[7],inc:m[8],est:!!m[9],rec:m[10],sv:[["1 meal",100]],unit:"meal"})))
     .concat(S.foods.map(f=>Object.assign({cat:"mine",kr:"",est:false},f)));
 }
+function allFoods(){return baseFoods().map(f=>{const o=S.over[f.id];return o?Object.assign(f,o,{edited:true}):f;});}
 function foodById(id){return allFoods().find(f=>f.id===id);}
-function servings(f){return f.sv.concat([["100 g",100],["Grams",1]]);}
+function servings(f){return f.unit==="meal"?f.sv:f.sv.concat([["100 g",100],["Grams",1]]);}
+function recipeOf(f){return RECIPES[f.rec]||RECIPES[RECALIAS[f.name]]||RECIPES[f.name]||null;}
+function isFav(id){return S.favs.includes(id);}
+function mealTarget(date,meal){const t=targets(date).kcal, sp=S.settings.split||[25,30,30,15];return Math.round(t*sp[MEALS.indexOf(meal)]/100/5)*5;}
+function mealEaten(date,meal){return totals(entries(date).filter(e=>e.meal===meal)).kcal;}
+function servLabel(e){if(e.u==="meal")return (e.q!==1?e.q+" x ":"")+"set meal";if(!e.g)return "Quick add";return (e.sl&&e.sl!=="Grams"&&e.sl!=="100 g"?(e.q!==1?e.q+" x ":"")+e.sl+" \u00b7 ":"")+R(e.g)+" g";}
 function macrosFor(f,g){return {kcal:f.k*g/100,p:f.p*g/100,c:f.c*g/100,f:f.f*g/100};}
 
 function weekOf(date){const d=daysBetween(S.settings.start,date);if(d<0)return 1;return Math.min(16,Math.floor(d/7)+1);}
@@ -412,7 +566,7 @@ function targets(date){
 function entries(date){return S.log[date]||[];}
 function totals(list){return list.reduce((t,e)=>({kcal:t.kcal+e.kcal,p:t.p+e.p,c:t.c+e.c,f:t.f+e.f}),{kcal:0,p:0,c:0,f:0});}
 function addEntry(date,meal,e){(S.log[date]=S.log[date]||[]).push(Object.assign({id:uid(),meal},e));save.log();}
-function entryFromFood(f,g,label,q){const m=macrosFor(f,g);return {fid:f.id,name:f.name,g,sl:label,q,kcal:m.kcal,p:m.p,c:m.c,f:m.f};}
+function entryFromFood(f,g,label,q){const m=macrosFor(f,g);const e={fid:f.id,name:f.name,g,sl:label,q,kcal:m.kcal,p:m.p,c:m.c,f:m.f};if(f.unit==="meal")e.u="meal";return e;}
 function recentFoods(){
   const count={}, last={}; const dates=Object.keys(S.log).sort().slice(-30);
   dates.forEach(d=>S.log[d].forEach(e=>{if(e.fid){count[e.fid]=(count[e.fid]||0)+1;last[e.fid]={g:e.g,sl:e.sl,q:e.q};}}));
@@ -473,9 +627,11 @@ function viewToday(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">${mbar("Carbs",tot.c,t.c,"#E9B44C")}${mbar("Fat",tot.f,t.f,"#E9844D")}</div>
     </div></section>`;
   MEALS.forEach(m=>{
-    const items=list.filter(e=>e.meal===m), mt=totals(items);
-    h+=`<section class="card"><div class="row between"><div class="htitle">${m}</div><div class="small"><b class="num" style="font-size:20px">${R(mt.kcal)}</b> <span class="muted">kcal${items.length?" &middot; "+R(mt.p)+" g protein":""}</span></div></div>
-      ${items.map(e=>`<button class="erow" data-a="edit" data-v="${e.id}"><span><span class="en">${esc(e.name)}</span><span class="small muted">${e.g?(e.sl&&e.sl!=="Grams"&&e.sl!=="100 g"?esc((e.q!==1?e.q+" x ":"")+e.sl)+" &middot; ":"")+R(e.g)+" g":"Quick add"}</span></span>
+    const items=list.filter(e=>e.meal===m), mt=totals(items), sug=mealTarget(d,m), over=mt.kcal>sug*1.1, pct=Math.min(100,100*mt.kcal/sug);
+    h+=`<section class="card"><div class="row between"><div class="htitle">${m}</div><div class="small"><b class="num" style="font-size:20px;${over?"color:var(--bad)":""}">${R(mt.kcal)}</b> <span class="muted">/ ${sug} kcal</span></div></div>
+      <div class="bar thin" style="margin:8px 0 2px"><i style="width:${pct}%;${over?"background:var(--bad)":""}"></i></div>
+      <div class="small muted" style="margin-bottom:4px">${mt.kcal===0?"Suggested about "+sug+" kcal":over?R(mt.kcal-sug)+" kcal over the suggestion. No problem, balance it in another meal.":R(sug-mt.kcal)+" kcal left for "+m.toLowerCase()}${items.length?" &middot; "+R(mt.p)+" g protein":""}</div>
+      ${items.map(e=>`<button class="erow" data-a="edit" data-v="${e.id}"><span><span class="en">${esc(e.name)}</span><span class="small muted">${esc(servLabel(e))}</span></span>
         <span class="ek"><b class="num">${R(e.kcal)}</b><span class="small muted">${R(e.p)}P ${R(e.c)}C ${R(e.f)}F</span></span></button>`).join("")}
       <div class="row" style="margin-top:10px;gap:8px"><button class="btn sm primary" style="flex:1" data-a="add" data-v="${m}">+ Add food</button>
       ${items.length?`<button class="btn sm ghost" data-a="saveMeal" data-v="${m}">Save as meal</button>`:`<button class="btn sm ghost" data-a="copyY" data-v="${m}">Copy yesterday</button>`}</div></section>`;
@@ -484,13 +640,15 @@ function viewToday(){
 }
 
 /* ===================== ADD FOOD ===================== */
-function openAdd(meal){S.add={meal,q:"",cat:recentFoods().length?"recent":"staples"};renderAdd();}
+function openAdd(meal){S.add={meal,q:"",sub:"all",cat:S.favs.length?"favs":recentFoods().length?"recent":"set"};renderAdd();}
 function closeAdd(){S.add=null;$("#wk").innerHTML="";document.body.style.overflow="";render();}
 function addList(){
   const a=S.add, q=a.q.trim().toLowerCase();
-  if(q){return {foods:allFoods().filter(f=>(f.name+" "+f.kr).toLowerCase().includes(q)).slice(0,60),meals:mealList().filter(m=>m.name.toLowerCase().includes(q))};}
+  if(q){return {foods:allFoods().filter(f=>(f.name+" "+f.kr+" "+(f.inc||"")).toLowerCase().includes(q)).slice(0,60),meals:mealList().filter(m=>m.name.toLowerCase().includes(q))};}
+  if(a.cat==="favs") return {foods:S.favs.map(foodById).filter(Boolean),meals:[]};
   if(a.cat==="recent") return {foods:recentFoods(),meals:[]};
-  if(a.cat==="meals") return {foods:[],meals:mealList()};
+  if(a.cat==="build") return {foods:[],meals:mealList()};
+  if(a.cat==="set"){const slot=a.meal[0];return {foods:allFoods().filter(f=>f.cat==="set"&&(a.sub==="all"||f.type===a.sub)).sort((x,y)=>(y.slots.includes(slot)?1:0)-(x.slots.includes(slot)?1:0)),meals:[]};}
   return {foods:allFoods().filter(f=>f.cat===a.cat),meals:[]};
 }
 function mealList(){
@@ -498,42 +656,66 @@ function mealList(){
   return S.meals.concat(pre);
 }
 function foodRow(f){
-  const sv=f.last&&f.last.g?[f.last.sl||"Grams",f.last.g]:f.sv[0]; const g=f.last&&f.last.g?f.last.g:sv[1]; const m=macrosFor(f,g);
-  return `<button class="erow" data-a="pick" data-v="${esc(f.id)}"><span><span class="en">${esc(f.name)}${f.kr?` <span class="muted" style="font-weight:500">${esc(f.kr)}</span>`:""}</span>
-    <span class="small muted">${f.last?"Last: ":""}${esc(f.last&&f.last.sl&&f.last.sl!=="Grams"?(f.last.q!==1?f.last.q+" x ":"")+f.last.sl:(f.last?R(g)+" g":sv[0]))}${f.last?"":" &middot; "+R(g)+" g"}${f.est?" &middot; estimate":""}</span></span>
-    <span class="ek"><b class="num">${R(m.kcal)}</b><span class="small muted">${R(m.p)} g protein</span></span></button>`;
+  const meal=f.unit==="meal";
+  const sv=f.last&&f.last.g?[f.last.sl||"Grams",f.last.g]:f.sv[0], g=f.last&&f.last.g?f.last.g:sv[1], m=macrosFor(f,g);
+  let sub;
+  if(meal) sub=esc(f.inc);
+  else if(f.last) sub="Last: "+esc(f.last.sl&&f.last.sl!=="Grams"?(f.last.q!==1?f.last.q+" x ":"")+f.last.sl:R(g)+" g");
+  else sub=esc(sv[0])+" &middot; "+R(g)+" g";
+  const left=S.add?mealTarget(S.date,S.add.meal)-mealEaten(S.date,S.add.meal):0;
+  const fits=S.add&&meal&&m.kcal<=left+25;
+  const tags=(fits?'<span class="tg ok">Fits</span>':"")+(f.edited?'<span class="tg">Edited</span>':f.est?'<span class="tg">Estimate</span>':"")+(recipeOf(f)?'<span class="tg">Recipe</span>':"");
+  return `<div class="frow"><button class="erow" data-a="pick" data-v="${esc(f.id)}"><span><span class="en">${esc(f.name)}${f.kr?` <span class="muted" style="font-weight:500">${esc(f.kr)}</span>`:""}</span>
+    <span class="small muted clamp">${sub}</span>${tags?`<span class="tags">${tags}</span>`:""}</span>
+    <span class="ek"><b class="num">${R(m.kcal)}</b><span class="small muted">${R(m.p)} g protein</span></span></button>
+    <button class="ib" data-a="finfo" data-v="${esc(f.id)}" aria-label="Info and recipe for ${esc(f.name)}">i</button>
+    <button class="star${isFav(f.id)?" on":""}" data-a="fav" data-v="${esc(f.id)}" aria-label="${isFav(f.id)?"Remove from":"Add to"} favorites">${isFav(f.id)?"\u2605":"\u2606"}</button></div>`;
 }
 function renderAdd(keepFocus){
   const a=S.add; if(!a) return; document.body.style.overflow="hidden";
-  const L=addList();
-  const listHtml=(L.meals.map(m=>{const t=totals(m.items);return `<button class="erow" data-a="pickMeal" data-v="${esc(m.id)}"><span><span class="en">${esc(m.name)}</span><span class="small muted">${m.items.length} items${m.preset?" &middot; built in":""}</span></span><span class="ek"><b class="num">${R(t.kcal)}</b><span class="small muted">${R(t.p)} g protein</span></span></button>`;}).join("")
-    +L.foods.map(foodRow).join(""))||`<div class="empty">${a.q?"Nothing found. Use Quick add or Create food.":a.cat==="mine"?"No custom foods yet. Tap Create food.":"Nothing here yet."}</div>`;
-  if(keepFocus){$("#addlist").innerHTML=listHtml;$("#addchips").style.display=a.q?"none":"flex";return;}
+  const L=addList(), sug=mealTarget(S.date,a.meal), left=sug-mealEaten(S.date,a.meal);
+  const empty={favs:"No favorites yet. Tap \u2606 next to any food or set meal.",mine:"No custom foods yet. Tap Create food.",recent:"Nothing logged yet."}[a.cat]||"Nothing here yet.";
+  const listHtml=(L.meals.map(m=>{const t=totals(m.items);return `<button class="erow" data-a="pickMeal" data-v="${esc(m.id)}"><span><span class="en">${esc(m.name)}</span><span class="small muted">${m.items.length} items logged separately${m.preset?" &middot; built in":""}</span></span><span class="ek"><b class="num">${R(t.kcal)}</b><span class="small muted">${R(t.p)} g protein</span></span></button>`;}).join("")
+    +L.foods.map(foodRow).join(""))||`<div class="empty">${a.q?"Nothing found. Use Quick add or Create food.":empty}</div>`;
+  const subs=a.cat==="set"&&!a.q?`<div class="chips" style="margin-top:6px">${SETTYPES.map(([k,l])=>`<button class="chipb sm${a.sub===k?" on":""}" data-a="sub" data-v="${k}">${l}</button>`).join("")}</div>`:"";
+  if(keepFocus){$("#addlist").innerHTML=listHtml;$("#addchips").style.display=a.q?"none":"flex";const sb=$("#addsubs");if(sb)sb.innerHTML=subs;return;}
   $("#wk").innerHTML=`<div class="wk"><div class="wk-in">
-    <div class="wkhead"><button class="btn sm ghost" data-a="closeAdd">&lsaquo; Done</button><div style="font-weight:700">Add to ${esc(a.meal)}</div><span style="width:64px"></span></div>
-    <div style="padding:12px 4px 0"><input id="search" class="search" type="search" placeholder="Search food (English or 한글)" value="${esc(a.q)}" autocomplete="off" autocapitalize="off">
+    <div class="wkhead"><button class="btn sm ghost" data-a="closeAdd">&lsaquo; Done</button><div style="text-align:center"><div style="font-weight:700">Add to ${esc(a.meal)}</div><div class="small muted">${left>0?R(left)+" kcal left of "+sug:"Suggested "+sug+" kcal reached"}</div></div><span style="width:64px"></span></div>
+    <div style="padding:12px 4px 0"><input id="search" class="search" type="search" placeholder="Search food or meal (English or \ud55c\uae00)" value="${esc(a.q)}" autocomplete="off" autocapitalize="off">
     <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm ghost" style="flex:1" data-a="quick">Quick add</button><button class="btn sm ghost" style="flex:1" data-a="create">Create food</button></div>
-    <div id="addchips" class="chips" style="display:${a.q?"none":"flex"}">${CATS.map(([k,l])=>`<button class="chipb${a.cat===k?" on":""}" data-a="cat" data-v="${k}">${l}</button>`).join("")}</div></div>
-    <div class="card" style="margin-top:12px;padding:6px 14px" id="addlist">${listHtml}</div></div></div>`;
+    <div id="addchips" class="chips" style="display:${a.q?"none":"flex"}">${CATS.map(([k,l])=>`<button class="chipb${a.cat===k?" on":""}" data-a="cat" data-v="${k}">${l}</button>`).join("")}</div>
+    <div id="addsubs">${subs}</div></div>
+    <div class="card" style="margin-top:12px;padding:4px 10px 4px 14px" id="addlist">${listHtml}</div>
+    <p class="small muted" style="margin:10px 4px">Set meals log as one entry. Build-a-meal logs each ingredient. Tap <b>i</b> for recipes, \u2606 to save favorites.</p></div></div>`;
 }
 
 /* Amount sheet */
 function openAmount(f,meal,editId){
   let si=0,q=1;
-  if(f.last&&f.last.g){const i=servings(f).findIndex(s=>s[0]===f.last.sl);if(i>=0){si=i;q=f.last.q||1;}else{si=servings(f).length-1;q=f.last.g;}}
+  if(f.last&&f.last.g){const i=servings(f).findIndex(s=>s[0]===f.last.sl);if(i>=0){si=i;q=f.last.q||1;}else if(f.unit!=="meal"){si=servings(f).length-1;q=f.last.g;}}
   S.amt={f,meal,si,q,editId:editId||null}; renderAmount();
 }
+function amtNote(f,isG,g){
+  const bits=[];
+  if(f.unit!=="meal"&&!isG) bits.push("= "+R(g)+" g");
+  if(f.edited) bits.push("Your edited values");
+  else if(f.est) bits.push("Estimate: recipes vary");
+  return bits.join(" \u00b7 ");
+}
 function renderAmount(){
-  const A=S.amt, sv=servings(A.f), s=sv[A.si], g=s[1]*A.q, m=macrosFor(A.f,g), isG=s[0]==="Grams";
-  openSheet(`<div class="label">${A.editId?"Edit":"Add to "+esc(A.meal)}</div><h2 style="font-size:24px;line-height:1.1">${esc(A.f.name)}</h2>${A.f.kr?`<div class="muted">${esc(A.f.kr)}</div>`:""}
-    <div class="stat" style="grid-template-columns:1.3fr 1fr 1fr 1fr;margin:14px 0"><div><b class="num" id="am-k">${R(m.kcal)}</b><span>kcal</span></div><div><b class="num" id="am-p">${R(m.p)}</b><span>protein</span></div><div><b class="num" id="am-c">${R(m.c)}</b><span>carbs</span></div><div><b class="num" id="am-f">${R(m.f)}</b><span>fat</span></div></div>
+  const A=S.amt, f=A.f, sv=servings(f), s=sv[A.si], g=s[1]*A.q, m=macrosFor(f,g), isG=s[0]==="Grams", meal=f.unit==="meal";
+  openSheet(`<div class="row between" style="align-items:flex-start;gap:10px"><div><div class="label">${A.editId?"Edit":"Add to "+esc(A.meal)}</div><h2 style="font-size:24px;line-height:1.1">${esc(f.name)}</h2>${f.kr?`<div class="muted">${esc(f.kr)}</div>`:""}</div>
+      <button class="star big${isFav(f.id)?" on":""}" data-a="fav" data-v="${esc(f.id)}" aria-label="Favorite">${isFav(f.id)?"\u2605":"\u2606"}</button></div>
+    ${meal?`<p class="small muted" style="margin:6px 0 0">${esc(f.inc)}</p>`:""}
+    <div class="stat" style="grid-template-columns:1.3fr 1fr 1fr 1fr;margin:14px 0 8px"><div><b class="num" id="am-k">${R(m.kcal)}</b><span>kcal</span></div><div><b class="num" id="am-p">${R(m.p)}</b><span>protein</span></div><div><b class="num" id="am-c">${R(m.c)}</b><span>carbs</span></div><div><b class="num" id="am-f">${R(m.f)}</b><span>fat</span></div></div>
+    <div class="row" style="gap:8px;margin-bottom:12px"><button class="btn sm ghost" style="flex:1" data-a="finfo" data-v="${esc(f.id)}">${recipeOf(f)?"Recipe + info":"Info"}</button><button class="btn sm ghost" style="flex:1" data-a="editVals" data-v="${esc(f.id)}">Edit values</button></div>
     <div class="stack">
-      <div class="field"><label class="label" for="am-sv">Serving</label><select id="am-sv">${sv.map((x,i)=>`<option value="${i}" ${i===A.si?"selected":""}>${esc(x[0])}${x[0]!=="Grams"&&x[0]!=="100 g"?" ("+x[1]+" g)":""}</option>`).join("")}</select></div>
-      <div class="field"><label class="label" for="am-q">${isG?"Grams":"How many"}</label><div class="row" style="gap:8px">
+      ${meal?"":`<div class="field"><label class="label" for="am-sv">Serving</label><select id="am-sv">${sv.map((x,i)=>`<option value="${i}" ${i===A.si?"selected":""}>${esc(x[0])}${x[0]!=="Grams"&&x[0]!=="100 g"?" ("+x[1]+" g)":""}</option>`).join("")}</select></div>`}
+      <div class="field"><label class="label" for="am-q">${isG?"Grams":meal?"How many meals":"How many"}</label><div class="row" style="gap:8px">
         <button class="btn" style="flex:none;width:56px" data-a="step" data-v="-1" aria-label="Less">&minus;</button>
         <input id="am-q" inputmode="decimal" value="${A.q}" style="flex:1;min-width:0;width:0;text-align:center;font-family:var(--display);font-weight:700;font-size:24px">
         <button class="btn" style="flex:none;width:56px" data-a="step" data-v="1" aria-label="More">+</button></div>
-        <div class="small muted" id="am-g">${isG?"":"= "+R(g)+" g"}${A.f.est?(isG?"":" &middot; ")+"Estimate: home recipes vary":""}</div></div>
+        <div class="small muted" id="am-g">${amtNote(f,isG,g)}</div></div>
       <button class="btn primary block" data-a="amtSave">${A.editId?"Save":"Add"}</button>
       ${A.editId?`<button class="btn danger block" data-a="amtDel">Delete</button>`:""}
     </div>`);
@@ -541,7 +723,48 @@ function renderAmount(){
 function updAmount(){
   const A=S.amt, s=servings(A.f)[A.si], g=s[1]*A.q, m=macrosFor(A.f,g);
   $("#am-k").textContent=R(m.kcal);$("#am-p").textContent=R(m.p);$("#am-c").textContent=R(m.c);$("#am-f").textContent=R(m.f);
-  $("#am-g").textContent=(s[0]==="Grams"?"":"= "+R(g)+" g")+(A.f.est?(s[0]==="Grams"?"":" · ")+"Estimate: home recipes vary":"");
+  $("#am-g").textContent=amtNote(A.f,s[0]==="Grams",g);
+}
+function sheetFoodInfo(id){
+  const f=foodById(id); if(!f) return;
+  const sv=f.sv[0], m=macrosFor(f,sv[1]), r=recipeOf(f), back=S.amt&&S.amt.f.id===id;
+  const catName=f.cat==="set"?"Set meal \u00b7 "+((SETTYPES.find(t=>t[0]===f.type)||[])[1]||""):((CATS.find(c=>c[0]===f.cat)||[])[1]||"Food");
+  openSheet(`<div class="guide"><div class="row between" style="align-items:flex-start;gap:10px"><div><div class="label">${esc(catName)}</div><h2 style="font-size:26px;line-height:1.1">${esc(f.name)}</h2>${f.kr?`<div class="muted">${esc(f.kr)}</div>`:""}</div>
+      <button class="star big${isFav(f.id)?" on":""}" data-a="fav" data-v="${esc(f.id)}" aria-label="Favorite">${isFav(f.id)?"\u2605":"\u2606"}</button></div>
+    <div class="stat" style="grid-template-columns:1.3fr 1fr 1fr 1fr;margin:14px 0 4px"><div><b class="num">${R(m.kcal)}</b><span>kcal</span></div><div><b class="num">${R(m.p)}</b><span>protein</span></div><div><b class="num">${R(m.c)}</b><span>carbs</span></div><div><b class="num">${R(m.f)}</b><span>fat</span></div></div>
+    <p class="small muted" style="margin:0">Per ${esc(sv[0])}${f.unit==="meal"?"":" ("+sv[1]+" g)"}${f.edited?" \u00b7 <b style='color:var(--warn)'>your edited values</b>":f.est?" \u00b7 estimate, recipes vary":""}</p>
+    ${f.inc?`<h3>What's in it</h3><p style="margin:0">${esc(f.inc)}</p>`:""}
+    ${r?`<h3>Recipe <span class="muted" style="font-family:var(--body);font-size:14px;font-weight:500">${esc(r.s)}</span></h3>
+      <div class="label" style="margin-bottom:4px">Ingredients</div><ul>${r.i.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+      <div class="label" style="margin:12px 0 4px">Steps</div><ol>${r.st.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>
+      ${r.n?`<div class="status warn" style="margin-top:12px">${esc(r.n)}</div>`:""}`:""}
+    ${f.unit!=="meal"&&f.sv.length>1?`<h3>Servings</h3><div>${f.sv.map(x=>{const mm=macrosFor(f,x[1]);return `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(x[0])} <span class="muted small">${x[1]} g</span></span><b class="num" style="font-size:18px">${R(mm.kcal)} kcal</b></div>`;}).join("")}</div>`:""}
+    <div class="stack" style="margin-top:16px">
+      ${back?`<button class="btn primary block" data-a="amtBack">Back</button>`:S.add?`<button class="btn primary block" data-a="infoAdd" data-v="${esc(f.id)}">Add to ${esc(S.add.meal)}</button>`:""}
+      <button class="btn block" data-a="editVals" data-v="${esc(f.id)}">Edit values</button>
+      ${back?"":`<button class="btn ghost block" data-a="closeSheet">Close</button>`}</div></div>`);
+}
+function sheetEditVals(id){
+  const f=foodById(id); if(!f) return;
+  if(f.cat==="mine"){sheetCreate(S.foods.find(x=>x.id===id));return;}
+  const sv=f.sv[0], g=sv[1], m=macrosFor(f,g), n=entries(S.date).filter(e=>e.fid===id).length;
+  openSheet(`<div class="label">Edit values</div><h2 style="font-size:24px;line-height:1.1">${esc(f.name)}</h2>
+    <p class="small muted">Enter the numbers for <b>${esc(sv[0])}</b>${f.unit==="meal"?"":" ("+g+" g)"} to match your recipe or the label. Other serving sizes adjust to match.</p>
+    <div class="stack" style="margin-top:8px">
+      ${fld("ev-k","Calories","","decimal",R(m.kcal))}
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${fld("ev-p","Protein g","","decimal",R(m.p))}${fld("ev-c","Carbs g","","decimal",R(m.c))}${fld("ev-f","Fat g","","decimal",R(m.f))}</div>
+      ${n?`<label class="row small" style="gap:10px;cursor:pointer"><input type="checkbox" id="ev-today" checked style="width:22px;height:22px"> Also update the ${n} ${n>1?"entries":"entry"} already logged on ${esc(niceDate(S.date).toLowerCase())}</label>`:""}
+      <button class="btn primary block" data-a="saveVals" data-v="${esc(id)}">Save values</button>
+      ${S.over[id]?`<button class="btn ghost block" data-a="resetVals" data-v="${esc(id)}">Reset to original</button>`:""}
+      <button class="btn ghost block" data-a="${S.amt&&S.amt.f.id===id?"amtBack":"closeSheet"}">Cancel</button></div>`);
+}
+function afterValsChange(id,msg){
+  const upd=$("#ev-today")&&$("#ev-today").checked, f=foodById(id);
+  if(upd){(S.log[S.date]||[]).forEach(e=>{if(e.fid===id&&e.g){const m=macrosFor(f,e.g);Object.assign(e,{kcal:m.kcal,p:m.p,c:m.c,f:m.f});}});save.log();}
+  if(S.amt&&S.amt.f.id===id){S.amt.f=Object.assign(f,{last:S.amt.f.last});renderAmount();}
+  else{closeSheet();}
+  if(S.add)renderAdd(true); else render();
+  toast(msg);
 }
 
 /* ===================== SHEETS ===================== */
@@ -568,6 +791,9 @@ function sheetSettings(){
     <div id="set-auto" style="display:${s.mode==="auto"?"block":"none"}"><div class="field"><label class="label" for="set-start">Program start (a Monday)</label><input type="date" id="set-start" value="${esc(s.start)}"></div>
       <p class="small muted" style="margin:8px 0 0">Targets change by week on their own. Today: ${t.kcal.toLocaleString()} kcal, ${t.p} g protein, ${t.c} g carbs, ${t.f} g fat.</p></div>
     <div id="set-custom" style="display:${s.mode==="custom"?"grid":"none"};grid-template-columns:repeat(2,1fr);gap:8px">${fld("t-k","Calories","","numeric",c[0])}${fld("t-p","Protein g","","numeric",c[1])}${fld("t-c","Carbs g","","numeric",c[2])}${fld("t-f","Fat g","","numeric",c[3])}</div>
+    <div class="field"><span class="label">Suggested split by meal (%)</span>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${MEALS.map((m,i)=>`<div class="field"><label class="small muted" for="sp-${i}">${m}</label><input id="sp-${i}" inputmode="numeric" value="${(s.split||[25,30,30,15])[i]}"></div>`).join("")}</div>
+      <p class="small muted" style="margin:4px 0 0">Must add up to 100. Today that's ${MEALS.map(m=>mealTarget(ymd(new Date()),m)).join(" / ")} kcal.</p></div>
     <button class="btn primary block" data-a="setSave">Save settings</button>
     <div style="height:1px;background:var(--line);margin:6px 0"></div>
     <div><div class="label">Backup</div><p class="small muted" style="margin:4px 0 0">Your diary lives only on this phone. Save a backup to Files or iCloud Drive every week. ${age===null?"<b style='color:var(--warn)'>No backup yet.</b>":"Last backup: "+(age===0?"today":age+" days ago")+"."}</p></div>
@@ -577,7 +803,7 @@ function sheetSettings(){
     <input type="file" id="restore-file" accept=".json,application/json,text/plain" style="display:none">
     <button class="btn ghost block" data-a="restorePaste">Restore from pasted text</button></div>`);
 }
-function backupData(){return {app:"mexico-fuel",version:1,exported:new Date().toISOString(),settings:S.settings,log:S.log,foods:S.foods,meals:S.meals};}
+function backupData(){return {app:"mexico-fuel",version:2,exported:new Date().toISOString(),settings:S.settings,log:S.log,foods:S.foods,meals:S.meals,favs:S.favs,over:S.over};}
 function markBackup(){S.settings.lastBackup=new Date().toISOString();save.settings();render();}
 async function exportShare(){
   const txt=JSON.stringify(backupData()), name="mexico-fuel-backup-"+ymd(new Date())+".json";
@@ -600,6 +826,7 @@ function restoreFrom(txt){
     S.log=Object.assign({},S.log,d.log||{});save.log();
     const byId=(cur,inc)=>{const m=new Map(cur.map(x=>[x.id,x]));(inc||[]).forEach(x=>x&&x.id&&m.set(x.id,x));return [...m.values()];};
     S.foods=byId(S.foods,d.foods);save.foods();S.meals=byId(S.meals,d.meals);save.meals();
+    S.favs=[...new Set(S.favs.concat(d.favs||[]))];save.favs();S.over=Object.assign({},S.over,d.over||{});save.over();
     if(d.settings){S.settings=Object.assign({},S.settings,d.settings,{lastBackup:S.settings.lastBackup||d.exported});save.settings();}
     render();toast("Backup restored");});
 }
@@ -633,12 +860,18 @@ function viewTrends(){
 }
 
 /* ===================== MY FOODS ===================== */
+function libRow(f){const g=f.sv[0][1],m=macrosFor(f,g);
+  return `<div class="frow"><button class="erow" data-a="finfo" data-v="${esc(f.id)}"><span><span class="en">${esc(f.name)}</span><span class="small muted clamp">${f.unit==="meal"?esc(f.inc):esc(f.sv[0][0])}</span>${f.edited?'<span class="tags"><span class="tg">Edited</span></span>':""}</span><span class="ek"><b class="num">${R(m.kcal)}</b><span class="small muted">${R(m.p)} g protein</span></span></button>
+    <button class="star${isFav(f.id)?" on":""}" data-a="fav" data-v="${esc(f.id)}" aria-label="Favorite">${isFav(f.id)?"\u2605":"\u2606"}</button></div>`;}
 function viewFoods(){
   let h=`<h1 class="num" style="font-size:34px;font-weight:800;margin-bottom:12px">My foods</h1>
     <button class="btn primary block" data-a="create">Create food</button>
+    <div class="label" style="margin:16px 0 8px">\u2605 Favorites</div><div class="card" style="padding:4px 10px 4px 14px">${S.favs.length?S.favs.map(foodById).filter(Boolean).map(libRow).join(""):`<div class="empty">Tap \u2606 next to any food or set meal to pin it here and to the top of the add screen.</div>`}</div>
+    ${Object.keys(S.over).length?`<div class="label" style="margin:16px 0 8px">Edited values</div><div class="card" style="padding:4px 10px 4px 14px">${Object.keys(S.over).map(foodById).filter(Boolean).map(libRow).join("")}</div>`:""}
     <div class="label" style="margin:16px 0 8px">Custom foods</div><div class="card" style="padding:6px 14px">${S.foods.length?S.foods.map(f=>{const g=f.sv[0][1];return `<button class="erow" data-a="foodEdit" data-v="${esc(f.id)}"><span><span class="en">${esc(f.name)}</span><span class="small muted">${esc(f.sv[0][0])}</span></span><span class="ek"><b class="num">${R(f.k*g/100)}</b><span class="small muted">${R(f.p*g/100)} g protein</span></span></button>`;}).join(""):`<div class="empty">Nothing yet. Add your own recipes and packaged foods here.</div>`}</div>
     <div class="label" style="margin:16px 0 8px">Saved meals</div><div class="card" style="padding:6px 14px">${S.meals.length?S.meals.map(m=>{const t=totals(m.items);return `<div class="erow"><span><span class="en">${esc(m.name)}</span><span class="small muted">${m.items.map(i=>esc(i.name.split(" (")[0])).join(", ")}</span></span><span class="ek"><b class="num">${R(t.kcal)}</b><button class="btn sm danger" data-a="mealDel" data-v="${esc(m.id)}">Delete</button></span></div>`;}).join(""):`<div class="empty">Log a meal in the diary, then tap Save as meal to reuse it in one tap.</div>`}</div>
-    <p class="small muted" style="margin-top:14px">${F.length} foods built in, including ${F.filter(f=>f[2]==="korean").length} Korean dishes. Home-cooked dishes are marked as estimates because recipes vary. For the best accuracy, weigh your pasta dry and measure your oil.</p>`;
+    <div class="label" style="margin:16px 0 8px">Browse set meals</div><div class="card" style="padding:4px 10px 4px 14px">${allFoods().filter(f=>f.cat==="set").map(libRow).join("")}</div>
+    <p class="small muted" style="margin-top:14px">${F.length} foods and ${SETMEALS.length} set meals built in, with ${Object.keys(RECIPES).length} recipes. Home-cooked dishes are marked as estimates because recipes vary. For the best accuracy, weigh your pasta dry and measure your oil.</p>`;
   return h;
 }
 
@@ -655,6 +888,19 @@ document.addEventListener("click",ev=>{
     case "add": openAdd(v); break;
     case "closeAdd": closeAdd(); break;
     case "cat": S.add.cat=v; renderAdd(); break;
+    case "sub": S.add.sub=v; renderAdd(true); break;
+    case "fav": {const on=!isFav(v); S.favs=on?[v].concat(S.favs):S.favs.filter(x=>x!==v); save.favs();
+      const sh=t.closest(".sheet"); if(sh){t.classList.toggle("on",on);t.textContent=on?"\u2605":"\u2606";}
+      if(S.add) renderAdd(true); else if(!sh) render(); else if(S.tab==="foods") render();
+      toast(on?"Added to favorites":"Removed from favorites"); break;}
+    case "finfo": sheetFoodInfo(v); break;
+    case "infoAdd": {const f=foodById(v); if(f) openAmount(f,S.add.meal); break;}
+    case "amtBack": renderAmount(); break;
+    case "editVals": sheetEditVals(v); break;
+    case "saveVals": {const f=foodById(v), g=f.sv[0][1], k=num($("#ev-k").value); if(!(k>0)){toast("Enter the calories");break;}
+      S.over[v]={k:k*100/g,p:num($("#ev-p").value)*100/g,c:num($("#ev-c").value)*100/g,f:num($("#ev-f").value)*100/g}; save.over();
+      afterValsChange(v,f.name.split(" (")[0]+" now "+R(k)+" kcal per "+f.sv[0][0]); break;}
+    case "resetVals": {delete S.over[v]; save.over(); afterValsChange(v,"Back to the original values"); break;}
     case "pick": {const f=S.add.cat==="recent"&&!S.add.q?recentFoods().find(x=>x.id===v):foodById(v); if(f) openAmount(f,S.add.meal); break;}
     case "pickMeal": {const m=mealList().find(x=>x.id===v); if(!m) break; m.items.forEach(i=>{const e=Object.assign({},i);delete e.id;delete e.meal;addEntry(S.date,S.add.meal,e);}); toast(m.name+" added"); closeAdd(); break;}
     case "step": {const A=S.amt, isG=servings(A.f)[A.si][0]==="Grams", st=isG?10:0.5; A.q=Math.max(isG?5:0.25,Math.round((A.q+st*(+v))*100)/100); $("#am-q").value=A.q; updAmount(); break;}
@@ -687,6 +933,7 @@ document.addEventListener("click",ev=>{
     case "mode": S.settings.mode=v; t.parentElement.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===t)); $("#set-auto").style.display=v==="auto"?"block":"none"; $("#set-custom").style.display=v==="custom"?"grid":"none"; break;
     case "setSave": {const st=$("#set-start").value; if(st)S.settings.start=st;
       const c=[num($("#t-k").value),num($("#t-p").value),num($("#t-c").value),num($("#t-f").value)]; if(c[0]>0)S.settings.custom=c.map(R);
+      const sp=[0,1,2,3].map(i=>R(num($("#sp-"+i).value))); if(sp.reduce((a,b)=>a+b,0)!==100){toast("Meal split must add up to 100");break;} S.settings.split=sp;
       save.settings(); closeSheet(); render(); toast("Settings saved"); break;}
     case "exportShare": exportShare(); break;
     case "exportCopy": exportCopy(); break;
