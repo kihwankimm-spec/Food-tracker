@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -203,8 +203,15 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .guide h3{font-family:var(--display);font-size:20px;font-weight:700;margin:16px 0 6px}
 .guide ol,.guide ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
 .guide li{line-height:1.4}
-.ta{width:100%;height:200px;border-radius:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);padding:10px;font-size:13px}
+.ta{width:100%;height:200px;border-radius:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);padding:10px;font-size:16px}
 button.sync{font-size:12px}
+/* Never let iPhone zoom in on a text box: every input is at least 16px. Keep the page exactly one screen wide. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{max-width:100%;overflow-x:hidden}
+input,select,textarea{font-size:16px}
+#app,.wk-in,.sheet{max-width:100vw}
+.field{min-width:0}
+.field input,.field select,.field textarea{width:100%;min-width:0;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -380,7 +387,7 @@ const F = [
  ["Burrito bowl (chicken, rice, beans)","","out",130,8.5,14,4.2,[["1 bowl",500]],1],
  ["Donkatsu","돈까스","out",270,15,17,16,[["1 cutlet",200]],1]
 ];
-const CATS=[["favs","\u2605 Favorites"],["recent","Recent"],["set","Set meals"],["build","Build-a-meal"],["staples","My staples"],["dairy","Yogurt"],["korean","Korean"],["pasta","Pasta"],["protein","Protein"],["carbs","Carbs + fruit"],["veg","Veg"],["fats","Fats"],["drinks","Snacks + drinks"],["out","Eating out"],["mine","My foods"]];
+const CATS=[["favs","\u2605 Favorites"],["recent","Recent"],["quick","Quick adds"],["set","Set meals"],["build","Build-a-meal"],["staples","My staples"],["dairy","Yogurt"],["korean","Korean"],["pasta","Pasta"],["protein","Protein"],["carbs","Carbs + fruit"],["veg","Veg"],["fats","Fats"],["drinks","Snacks + drinks"],["out","Eating out"],["mine","My foods"]];
 /* ===================== SET MEALS =====================
    One tap logs the whole meal as a single entry.
    [name, korean, type, slots (B L D S), kcal, protein, carbs, fat, what's in it, estimate?, recipe key] */
@@ -534,9 +541,12 @@ function niceDate(s){const t=ymd(new Date());if(s===t)return "Today";if(s===addD
 const S={tab:"today",date:ymd(new Date()),
   settings:Object.assign({start:"2026-11-16",mode:"auto",custom:[2300,175,255,65],split:[25,30,30,15]},lsGet("cc_settings",{})),
   log:lsGet("cc_log",{}), foods:lsGet("cc_foods",[]), meals:lsGet("cc_meals",[]),
-  favs:lsGet("cc_favs",[]), over:lsGet("cc_over",{}),
+  favs:lsGet("cc_favs",[]), over:lsGet("cc_over",{}), quick:lsGet("cc_quick",null),
   add:null, amt:null};
-const save={log(){lsSet("cc_log",S.log);},foods(){lsSet("cc_foods",S.foods);},meals(){lsSet("cc_meals",S.meals);},settings(){lsSet("cc_settings",S.settings);},favs(){lsSet("cc_favs",S.favs);},over(){lsSet("cc_over",S.over);}};
+const save={log(){lsSet("cc_log",S.log);},foods(){lsSet("cc_foods",S.foods);},meals(){lsSet("cc_meals",S.meals);},settings(){lsSet("cc_settings",S.settings);},favs(){lsSet("cc_favs",S.favs);},over(){lsSet("cc_over",S.over);},quick(){lsSet("cc_quick",S.quick);}};
+/* Quick-add history: built once from past quick adds, then kept up to date */
+if(!S.quick){const seen={};S.quick=[];Object.keys(S.log).sort().reverse().forEach(d=>S.log[d].forEach(e=>{if(!e.fid&&!e.g){const k=(e.name||"").toLowerCase();if(!seen[k]){seen[k]=1;S.quick.push({id:uid(),name:e.name||"Quick add",kcal:e.kcal,p:e.p,c:e.c,f:e.f});}}}));save.quick();}
+function rememberQuick(q){const k=q.name.toLowerCase();S.quick=[Object.assign({id:uid()},q)].concat(S.quick.filter(x=>x.name.toLowerCase()!==k)).slice(0,40);save.quick();}
 
 function baseFoods(){
   return F.map(f=>({id:f[0],name:f[0],kr:f[1],cat:f[2],k:f[3],p:f[4],c:f[5],f:f[6],sv:f[7],est:!!f[8]}))
@@ -550,7 +560,8 @@ function recipeOf(f){return RECIPES[f.rec]||RECIPES[RECALIAS[f.name]]||RECIPES[f
 function isFav(id){return S.favs.includes(id);}
 function mealTarget(date,meal){const t=targets(date).kcal, sp=S.settings.split||[25,30,30,15];return Math.round(t*sp[MEALS.indexOf(meal)]/100/5)*5;}
 function mealEaten(date,meal){return totals(entries(date).filter(e=>e.meal===meal)).kcal;}
-function servLabel(e){if(e.u==="meal")return (e.q!==1?e.q+" x ":"")+"set meal";if(!e.g)return "Quick add";return (e.sl&&e.sl!=="Grams"&&e.sl!=="100 g"?(e.q!==1?e.q+" x ":"")+e.sl+" \u00b7 ":"")+R(e.g)+" g";}
+function servLabel(e){return servLabel0(e)+(e.custom?" \u00b7 edited":"");}
+function servLabel0(e){if(e.u==="meal")return (e.q!==1?e.q+" x ":"")+"set meal";if(!e.g)return "Quick add";return (e.sl&&e.sl!=="Grams"&&e.sl!=="100 g"?(e.q!==1?e.q+" x ":"")+e.sl+" \u00b7 ":"")+R(e.g)+" g";}
 function macrosFor(f,g){return {kcal:f.k*g/100,p:f.p*g/100,c:f.c*g/100,f:f.f*g/100};}
 
 function weekOf(date){const d=daysBetween(S.settings.start,date);if(d<0)return 1;return Math.min(16,Math.floor(d/7)+1);}
@@ -644,9 +655,10 @@ function openAdd(meal){S.add={meal,q:"",sub:"all",cat:S.favs.length?"favs":recen
 function closeAdd(){S.add=null;$("#wk").innerHTML="";document.body.style.overflow="";render();}
 function addList(){
   const a=S.add, q=a.q.trim().toLowerCase();
-  if(q){return {foods:allFoods().filter(f=>(f.name+" "+f.kr+" "+(f.inc||"")).toLowerCase().includes(q)).slice(0,60),meals:mealList().filter(m=>m.name.toLowerCase().includes(q))};}
+  if(q){return {foods:allFoods().filter(f=>(f.name+" "+f.kr+" "+(f.inc||"")).toLowerCase().includes(q)).slice(0,60),meals:mealList().filter(m=>m.name.toLowerCase().includes(q)),quick:S.quick.filter(x=>x.name.toLowerCase().includes(q))};}
   if(a.cat==="favs") return {foods:S.favs.map(foodById).filter(Boolean),meals:[]};
   if(a.cat==="recent") return {foods:recentFoods(),meals:[]};
+  if(a.cat==="quick") return {foods:[],meals:[],quick:S.quick};
   if(a.cat==="build") return {foods:[],meals:mealList()};
   if(a.cat==="set"){const slot=a.meal[0];return {foods:allFoods().filter(f=>f.cat==="set"&&(a.sub==="all"||f.type===a.sub)).sort((x,y)=>(y.slots.includes(slot)?1:0)-(x.slots.includes(slot)?1:0)),meals:[]};}
   return {foods:allFoods().filter(f=>f.cat===a.cat),meals:[]};
@@ -671,11 +683,13 @@ function foodRow(f){
     <button class="ib" data-a="finfo" data-v="${esc(f.id)}" aria-label="Info and recipe for ${esc(f.name)}">i</button>
     <button class="star${isFav(f.id)?" on":""}" data-a="fav" data-v="${esc(f.id)}" aria-label="${isFav(f.id)?"Remove from":"Add to"} favorites">${isFav(f.id)?"\u2605":"\u2606"}</button></div>`;
 }
+function quickRow(x){return `<div class="frow"><button class="erow" data-a="quickPick" data-v="${esc(x.id)}"><span><span class="en">${esc(x.name)}</span><span class="small muted">Quick add &middot; ${R(x.p)}P ${R(x.c)}C ${R(x.f)}F</span></span><span class="ek"><b class="num">${R(x.kcal)}</b><span class="small muted">kcal</span></span></button>
+  <button class="star" data-a="quickForget" data-v="${esc(x.id)}" aria-label="Remove ${esc(x.name)} from quick-add history" style="font-size:20px">&times;</button></div>`;}
 function renderAdd(keepFocus){
   const a=S.add; if(!a) return; document.body.style.overflow="hidden";
   const L=addList(), sug=mealTarget(S.date,a.meal), left=sug-mealEaten(S.date,a.meal);
-  const empty={favs:"No favorites yet. Tap \u2606 next to any food or set meal.",mine:"No custom foods yet. Tap Create food.",recent:"Nothing logged yet."}[a.cat]||"Nothing here yet.";
-  const listHtml=(L.meals.map(m=>{const t=totals(m.items);return `<button class="erow" data-a="pickMeal" data-v="${esc(m.id)}"><span><span class="en">${esc(m.name)}</span><span class="small muted">${m.items.length} items logged separately${m.preset?" &middot; built in":""}</span></span><span class="ek"><b class="num">${R(t.kcal)}</b><span class="small muted">${R(t.p)} g protein</span></span></button>`;}).join("")
+  const empty={quick:"No quick adds yet. Tap Quick add above, and anything you add shows up here to reuse.",favs:"No favorites yet. Tap \u2606 next to any food or set meal.",mine:"No custom foods yet. Tap Create food.",recent:"Nothing logged yet."}[a.cat]||"Nothing here yet.";
+  const listHtml=((L.quick||[]).map(quickRow).join("")+L.meals.map(m=>{const t=totals(m.items);return `<button class="erow" data-a="pickMeal" data-v="${esc(m.id)}"><span><span class="en">${esc(m.name)}</span><span class="small muted">${m.items.length} items logged separately${m.preset?" &middot; built in":""}</span></span><span class="ek"><b class="num">${R(t.kcal)}</b><span class="small muted">${R(t.p)} g protein</span></span></button>`;}).join("")
     +L.foods.map(foodRow).join(""))||`<div class="empty">${a.q?"Nothing found. Use Quick add or Create food.":empty}</div>`;
   const subs=a.cat==="set"&&!a.q?`<div class="chips" style="margin-top:6px">${SETTYPES.map(([k,l])=>`<button class="chipb sm${a.sub===k?" on":""}" data-a="sub" data-v="${k}">${l}</button>`).join("")}</div>`:"";
   if(keepFocus){$("#addlist").innerHTML=listHtml;$("#addchips").style.display=a.q?"none":"flex";const sb=$("#addsubs");if(sb)sb.innerHTML=subs;return;}
@@ -703,12 +717,13 @@ function amtNote(f,isG,g){
   return bits.join(" \u00b7 ");
 }
 function renderAmount(){
-  const A=S.amt, f=A.f, sv=servings(f), s=sv[A.si], g=s[1]*A.q, m=macrosFor(f,g), isG=s[0]==="Grams", meal=f.unit==="meal";
+  const A=S.amt, f=A.f, sv=servings(f), s=sv[A.si], g=s[1]*A.q, m=A.custom||macrosFor(f,g), isG=s[0]==="Grams", meal=f.unit==="meal";
   openSheet(`<div class="row between" style="align-items:flex-start;gap:10px"><div><div class="label">${A.editId?"Edit":"Add to "+esc(A.meal)}</div><h2 style="font-size:24px;line-height:1.1">${esc(f.name)}</h2>${f.kr?`<div class="muted">${esc(f.kr)}</div>`:""}</div>
       <button class="star big${isFav(f.id)?" on":""}" data-a="fav" data-v="${esc(f.id)}" aria-label="Favorite">${isFav(f.id)?"\u2605":"\u2606"}</button></div>
     ${meal?`<p class="small muted" style="margin:6px 0 0">${esc(f.inc)}</p>`:""}
     <div class="stat" style="grid-template-columns:1.3fr 1fr 1fr 1fr;margin:14px 0 8px"><div><b class="num" id="am-k">${R(m.kcal)}</b><span>kcal</span></div><div><b class="num" id="am-p">${R(m.p)}</b><span>protein</span></div><div><b class="num" id="am-c">${R(m.c)}</b><span>carbs</span></div><div><b class="num" id="am-f">${R(m.f)}</b><span>fat</span></div></div>
-    <div class="row" style="gap:8px;margin-bottom:12px"><button class="btn sm ghost" style="flex:1" data-a="finfo" data-v="${esc(f.id)}">${recipeOf(f)?"Recipe + info":"Info"}</button><button class="btn sm ghost" style="flex:1" data-a="editVals" data-v="${esc(f.id)}">Edit values</button></div>
+    <div class="row" style="gap:8px;margin-bottom:12px"><button class="btn sm ghost" style="flex:1" data-a="finfo" data-v="${esc(f.id)}">${recipeOf(f)?"Recipe + info":"Info"}</button><button class="btn sm ghost" style="flex:1" data-a="editMacros">Edit macros</button></div>
+    ${A.custom?`<div class="status warn" style="margin:-4px 0 12px">This entry uses your own numbers. Change the amount to go back to the food's values.</div>`:""}
     <div class="stack">
       ${meal?"":`<div class="field"><label class="label" for="am-sv">Serving</label><select id="am-sv">${sv.map((x,i)=>`<option value="${i}" ${i===A.si?"selected":""}>${esc(x[0])}${x[0]!=="Grams"&&x[0]!=="100 g"?" ("+x[1]+" g)":""}</option>`).join("")}</select></div>`}
       <div class="field"><label class="label" for="am-q">${isG?"Grams":meal?"How many meals":"How many"}</label><div class="row" style="gap:8px">
@@ -721,7 +736,8 @@ function renderAmount(){
     </div>`);
 }
 function updAmount(){
-  const A=S.amt, s=servings(A.f)[A.si], g=s[1]*A.q, m=macrosFor(A.f,g);
+  const A=S.amt; if(A.custom){A.custom=null;renderAmount();return;}
+  const s=servings(A.f)[A.si], g=s[1]*A.q, m=macrosFor(A.f,g);
   $("#am-k").textContent=R(m.kcal);$("#am-p").textContent=R(m.p);$("#am-c").textContent=R(m.c);$("#am-f").textContent=R(m.f);
   $("#am-g").textContent=amtNote(A.f,s[0]==="Grams",g);
 }
@@ -773,17 +789,36 @@ function closeSheet(){$("#sheet").innerHTML="";S.amt=null;}
 let confirmCb=null;
 function sheetConfirm(title,msg,ok,cb,danger){confirmCb=cb;openSheet(`<h2>${esc(title)}</h2><p class="muted" style="margin:8px 0 16px">${esc(msg)}</p><div class="stack"><button class="btn ${danger?"danger":"primary"} block" data-a="confirmOk">${esc(ok)}</button><button class="btn ghost block" data-a="closeSheet">Cancel</button></div>`);}
 function fld(id,label,ph,mode,val){return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" ${mode?`inputmode="${mode}"`:""} placeholder="${ph||""}" value="${val==null?"":esc(val)}"></div>`;}
-function sheetQuick(){openSheet(`<h2>Quick add</h2><p class="small muted">For anything you know the numbers for, like a restaurant meal or a label.</p><div class="stack" style="margin-top:10px">
+function sheetQuick(){openSheet(`<h2>Quick add</h2><p class="small muted">For anything you know the numbers for, like a restaurant meal or a label. It's saved below so you can add it again in one tap.</p><div class="stack" style="margin-top:10px">
   ${fld("q-name","Name","e.g. Dinner out")}${fld("q-k","Calories","","decimal")}
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${fld("q-p","Protein g","","decimal")}${fld("q-c","Carbs g","","decimal")}${fld("q-f","Fat g","","decimal")}</div>
-  <button class="btn primary block" data-a="quickSave">Add</button></div>`);}
+  <button class="btn primary block" data-a="quickSave">Add</button></div>
+  ${S.quick.length?`<div class="label" style="margin:18px 0 2px">Your quick adds &middot; tap to add again</div><div>${S.quick.map(quickRow).join("")}</div>`:""}`);}
+/* Edit the macros of one logged entry. Asks whether to change only this entry or also save it for next time. */
+function sheetMacros(mode,ctx){
+  // mode "food": ctx = S.amt (food entry being added or edited). mode "quick": ctx = logged quick-add entry.
+  let name,v,note;
+  if(mode==="food"){const A=ctx,s=servings(A.f)[A.si],g=s[1]*A.q,m=A.custom||macrosFor(A.f,g);name=A.f.name;v=[m.kcal,m.p,m.c,m.f];note=A.f.unit==="meal"?(A.q!==1?A.q+" meals":"1 meal"):(s[0]==="Grams"?R(g)+" g":(A.q!==1?A.q+" x ":"")+s[0]+" ("+R(g)+" g)");}
+  else{name=ctx.name;v=[ctx.kcal,ctx.p,ctx.c,ctx.f];note="Quick add";}
+  openSheet(`<div class="label">Edit macros &middot; ${esc(note)}</div><h2 style="font-size:24px;line-height:1.1">${esc(name)}</h2>
+    <div class="stack" style="margin-top:12px">
+      ${mode==="quick"?fld("mx-name","Name","",null,name):""}
+      ${fld("mx-k","Calories","","decimal",R(v[0]))}
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${fld("mx-p","Protein g","","decimal",R(v[1]))}${fld("mx-c","Carbs g","","decimal",R(v[2]))}${fld("mx-f","Fat g","","decimal",R(v[3]))}</div>
+      <div class="label" style="margin-top:6px">Save how?</div>
+      <button class="btn primary block" data-a="mxSave" data-v="${mode}" data-scope="one">Only this entry</button>
+      <button class="btn block" data-a="mxSave" data-v="${mode}" data-scope="all">${mode==="quick"?"This entry and my quick-add history":"This entry and save for next time"}</button>
+      <p class="small muted" style="margin:0">${mode==="quick"?"Saving to history means next time you tap it, it uses these numbers.":"Saving for next time changes "+esc(name.split(" (")[0])+" everywhere you add it from now on. Past days don't change."}</p>
+      ${mode==="quick"?`<button class="btn danger block" data-a="entryDel" data-v="${ctx.id}">Delete entry</button>`:""}
+      <button class="btn ghost block" data-a="${mode==="food"?"amtBack":"closeSheet"}">Cancel</button></div>`);
+}
 function sheetCreate(ed){const f=ed||{};openSheet(`<h2>${ed?"Edit food":"Create food"}</h2><p class="small muted">Enter the numbers for one serving, from the label or your recipe.</p><div class="stack" style="margin-top:10px">
   ${fld("c-name","Name","e.g. Mom's galbijjim",null,f.name)}
   <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px">${fld("c-sl","Serving name","1 bowl",null,f.sv?f.sv[0][0]:"")}${fld("c-g","Grams","optional","decimal",f.sv?f.sv[0][1]:"")}</div>
   ${fld("c-k","Calories per serving","","decimal",f.sv?R(f.k*f.sv[0][1]/100):"")}
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${fld("c-p","Protein g","","decimal",f.sv?R(f.p*f.sv[0][1]/100):"")}${fld("c-c","Carbs g","","decimal",f.sv?R(f.c*f.sv[0][1]/100):"")}${fld("c-f","Fat g","","decimal",f.sv?R(f.f*f.sv[0][1]/100):"")}</div>
   <button class="btn primary block" data-a="createSave" data-v="${ed?esc(ed.id):""}">Save food</button>${ed?`<button class="btn danger block" data-a="foodDel" data-v="${esc(ed.id)}">Delete food</button>`:""}</div>`);}
-function sheetEditQuick(e){openSheet(`<h2>${esc(e.name)}</h2><p class="muted">${R(e.kcal)} kcal &middot; ${R(e.p)}P ${R(e.c)}C ${R(e.f)}F</p><div class="stack" style="margin-top:12px"><button class="btn danger block" data-a="entryDel" data-v="${e.id}">Delete</button><button class="btn ghost block" data-a="closeSheet">Close</button></div>`);}
+function sheetEditQuick(e){S.qedit=e.id;sheetMacros("quick",e);}
 function sheetSettings(){
   const s=S.settings,c=s.custom,age=backupAge(),t=targets(ymd(new Date()));
   openSheet(`<h2>Settings</h2><div class="stack" style="margin-top:12px">
@@ -803,7 +838,7 @@ function sheetSettings(){
     <input type="file" id="restore-file" accept=".json,application/json,text/plain" style="display:none">
     <button class="btn ghost block" data-a="restorePaste">Restore from pasted text</button></div>`);
 }
-function backupData(){return {app:"mexico-fuel",version:2,exported:new Date().toISOString(),settings:S.settings,log:S.log,foods:S.foods,meals:S.meals,favs:S.favs,over:S.over};}
+function backupData(){return {app:"mexico-fuel",version:2,exported:new Date().toISOString(),settings:S.settings,log:S.log,foods:S.foods,meals:S.meals,favs:S.favs,over:S.over,quick:S.quick};}
 function markBackup(){S.settings.lastBackup=new Date().toISOString();save.settings();render();}
 async function exportShare(){
   const txt=JSON.stringify(backupData()), name="mexico-fuel-backup-"+ymd(new Date())+".json";
@@ -827,6 +862,7 @@ function restoreFrom(txt){
     const byId=(cur,inc)=>{const m=new Map(cur.map(x=>[x.id,x]));(inc||[]).forEach(x=>x&&x.id&&m.set(x.id,x));return [...m.values()];};
     S.foods=byId(S.foods,d.foods);save.foods();S.meals=byId(S.meals,d.meals);save.meals();
     S.favs=[...new Set(S.favs.concat(d.favs||[]))];save.favs();S.over=Object.assign({},S.over,d.over||{});save.over();
+    (d.quick||[]).slice().reverse().forEach(x=>{if(!S.quick.some(y=>y.name.toLowerCase()===x.name.toLowerCase()))S.quick.push(x);});save.quick();
     if(d.settings){S.settings=Object.assign({},S.settings,d.settings,{lastBackup:S.settings.lastBackup||d.exported});save.settings();}
     render();toast("Backup restored");});
 }
@@ -905,16 +941,41 @@ document.addEventListener("click",ev=>{
     case "pickMeal": {const m=mealList().find(x=>x.id===v); if(!m) break; m.items.forEach(i=>{const e=Object.assign({},i);delete e.id;delete e.meal;addEntry(S.date,S.add.meal,e);}); toast(m.name+" added"); closeAdd(); break;}
     case "step": {const A=S.amt, isG=servings(A.f)[A.si][0]==="Grams", st=isG?10:0.5; A.q=Math.max(isG?5:0.25,Math.round((A.q+st*(+v))*100)/100); $("#am-q").value=A.q; updAmount(); break;}
     case "amtSave": {const A=S.amt; if(!(A.q>0)){toast("Enter an amount");break;} const s=servings(A.f)[A.si], e=entryFromFood(A.f,s[1]*A.q,s[0],A.q);
+      if(A.custom){Object.assign(e,{kcal:A.custom.kcal,p:A.custom.p,c:A.custom.c,f:A.custom.f,custom:true});}
       if(A.editId){const list=entries(S.date),i=list.findIndex(x=>x.id===A.editId); if(i>=0){list[i]=Object.assign({id:A.editId,meal:list[i].meal},e);save.log();}}
       else addEntry(S.date,A.meal,e);
       closeSheet(); if(S.add){toast("Added "+R(e.kcal)+" kcal"); S.add.q=""; renderAdd();} else render(); break;}
     case "amtDel": S.log[S.date]=entries(S.date).filter(x=>x.id!==S.amt.editId); save.log(); closeSheet(); render(); break;
     case "edit": {const e=entries(S.date).find(x=>x.id===v); if(!e) break; const f=e.fid&&foodById(e.fid);
-      if(f) openAmount(Object.assign({},f,{last:{g:e.g,sl:e.sl,q:e.q}}),e.meal,e.id); else sheetEditQuick(e); break;}
+      if(f){openAmount(Object.assign({},f,{last:{g:e.g,sl:e.sl,q:e.q}}),e.meal,e.id); if(e.custom){S.amt.custom={kcal:e.kcal,p:e.p,c:e.c,f:e.f};renderAmount();}} else sheetEditQuick(e); break;}
     case "entryDel": S.log[S.date]=entries(S.date).filter(x=>x.id!==v); save.log(); closeSheet(); render(); break;
     case "quick": sheetQuick(); break;
+    case "quickPick": {const x=S.quick.find(q=>q.id===v); if(!x) break; addEntry(S.date,S.add?S.add.meal:"Snacks",{name:x.name,g:0,kcal:x.kcal,p:x.p,c:x.c,f:x.f}); rememberQuick({name:x.name,kcal:x.kcal,p:x.p,c:x.c,f:x.f});
+      closeSheet(); toast("Added "+x.name+", "+R(x.kcal)+" kcal"); if(S.add) renderAdd(true); else render(); break;}
+    case "quickForget": {S.quick=S.quick.filter(q=>q.id!==v); save.quick(); if($("#sheet").innerHTML) sheetQuick(); if(S.add) renderAdd(true); break;}
+    case "editMacros": sheetMacros("food",S.amt); break;
+    case "mxSave": {
+      const vals={kcal:num($("#mx-k").value),p:num($("#mx-p").value),c:num($("#mx-c").value),f:num($("#mx-f").value)};
+      if(!(vals.kcal>0)){toast("Enter the calories");break;}
+      const all=t.dataset.scope==="all";
+      if(v==="quick"){const list=entries(S.date),i=list.findIndex(x=>x.id===S.qedit); if(i<0){closeSheet();break;}
+        const nm=($("#mx-name").value||"").trim()||list[i].name; Object.assign(list[i],vals,{name:nm}); save.log();
+        if(all) rememberQuick({name:nm,kcal:vals.kcal,p:vals.p,c:vals.c,f:vals.f});
+        closeSheet(); render(); toast(all?"Saved and updated your quick adds":"Saved for this entry"); break;}
+      const A=S.amt, s=servings(A.f)[A.si], g=s[1]*A.q;
+      if(all){const per={k:vals.kcal*100/g,p:vals.p*100/g,c:vals.c*100/g,f:vals.f*100/g};
+        if(A.f.cat==="mine"){const cf=S.foods.find(x=>x.id===A.f.id); if(cf){Object.assign(cf,per);save.foods();}}
+        else{S.over[A.f.id]=per;save.over();}
+        A.f=Object.assign(foodById(A.f.id),{last:A.f.last}); A.custom=null;}
+      else A.custom=vals;
+      const e=entryFromFood(A.f,g,s[0],A.q); if(A.custom) Object.assign(e,A.custom,{custom:true});
+      if(A.editId){const list=entries(S.date),i=list.findIndex(x=>x.id===A.editId); if(i>=0){list[i]=Object.assign({id:A.editId,meal:list[i].meal},e);save.log();}}
+      else addEntry(S.date,A.meal,e);
+      closeSheet(); if(S.add){S.add.q="";renderAdd();} else render();
+      toast(all?A.f.name.split(" (")[0]+" saved with your numbers":"Saved for this entry only"); break;}
     case "quickSave": {const k=num($("#q-k").value); if(!(k>0)){toast("Enter the calories");break;}
-      addEntry(S.date,S.add?S.add.meal:"Snacks",{name:$("#q-name").value.trim()||"Quick add",g:0,kcal:k,p:num($("#q-p").value),c:num($("#q-c").value),f:num($("#q-f").value)});
+      const qe={name:$("#q-name").value.trim()||"Quick add",g:0,kcal:k,p:num($("#q-p").value),c:num($("#q-c").value),f:num($("#q-f").value)};
+      addEntry(S.date,S.add?S.add.meal:"Snacks",qe); rememberQuick({name:qe.name,kcal:qe.kcal,p:qe.p,c:qe.c,f:qe.f});
       closeSheet(); if(S.add){toast("Added "+R(k)+" kcal");renderAdd();} else render(); break;}
     case "create": sheetCreate(); break;
     case "foodEdit": sheetCreate(S.foods.find(f=>f.id===v)); break;
