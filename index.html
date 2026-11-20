@@ -205,6 +205,28 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .guide li{line-height:1.4}
 .ta{width:100%;height:200px;border-radius:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);padding:10px;font-size:16px}
 button.sync{font-size:12px}
+.tbtn{text-align:left;display:block;width:100%;padding:0}
+.pen{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:var(--surface-2);color:var(--phase);font-size:10.5px;letter-spacing:.04em;vertical-align:1px}
+.rseg{grid-auto-columns:1fr}
+.rseg::-webkit-scrollbar{display:none}
+.rseg button{padding:0 4px;font-size:14px;white-space:nowrap;min-width:0}
+.rbody{display:block;width:100%;text-align:left;padding:0}
+.mstat{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.mstat div{background:var(--surface-2);border-radius:10px;padding:8px 6px;text-align:center;min-width:0}
+.mstat b{display:block;font-family:var(--display);font-size:24px;line-height:1.1}
+.mstat span{font-size:11px;color:var(--muted)}
+.ing{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.ing:last-child{border-bottom:0}
+.ing>b{flex:none;width:62px;font-size:18px;line-height:1.2;color:var(--phase)}
+.ing>span{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.gi{display:flex;gap:10px;align-items:center;width:100%;padding:10px 0;border-bottom:1px solid var(--line)}
+.gi:last-child{border-bottom:0}
+.gi>span>span{display:block}
+.gi b{flex:none;max-width:46%}
+.ck{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center;font-weight:800;font-size:14px;color:var(--phase-ink)}
+.gi.got .ck{background:var(--phase);border-color:transparent}
+.gi.got .en,.gi.got b{text-decoration:line-through;color:var(--muted)}
+.iconbtn.sm{width:34px;height:34px;border-radius:10px;font-size:18px}
 /* Never let iPhone zoom in on a text box: every input is at least 16px. Keep the page exactly one screen wide. */
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html,body{max-width:100%;overflow-x:hidden}
@@ -517,7 +539,9 @@ const PRESETS=[
  ["Eggs + toast",[["Egg, whole",100],["Egg whites",200],["Bread, whole-grain",76]]]
 ];
 const MEALS=["Breakfast","Lunch","Dinner","Snacks"];
-const WEEKT={1:[2300,175,255,65],6:[2600,175,305,75],7:[2200,175,240,60],11:[2100,180,220,55],15:[2200,175,250,55],16:[2100,180,220,55]};
+/* Plan targets [kcal, protein, carbs, fat], matching the 15-week plan PDF. Editable in the app. */
+const WEEKT={1:[2200,170,235,65],6:[2500,170,300,70],7:[2100,170,220,60],11:[2000,175,200,55],15:[2100,175,215,60],16:[2000,175,200,55]};
+function getWT(){return Object.assign({},WEEKT,S.settings.weekT||{});}
 const PHC={1:["#19A7A9","#03201F","Foundation"],2:["#E9844D","#2A1205","Build"],3:["#E5684E","#2B0B05","Sharpen"],4:["#E9B44C","#2A1E04","Peak"]};
 
 /* ===================== HELPERS ===================== */
@@ -539,11 +563,13 @@ function niceDate(s){const t=ymd(new Date());if(s===t)return "Today";if(s===addD
 
 /* ===================== STATE ===================== */
 const S={tab:"today",date:ymd(new Date()),
-  settings:Object.assign({start:"2026-11-16",mode:"auto",custom:[2300,175,255,65],split:[25,30,30,15]},lsGet("cc_settings",{})),
+  settings:Object.assign({start:"2026-11-16",mode:"auto",custom:[2200,170,235,65],split:[25,30,30,15],weekT:{},dayT:{}},lsGet("cc_settings",{})),
   log:lsGet("cc_log",{}), foods:lsGet("cc_foods",[]), meals:lsGet("cc_meals",[]),
   favs:lsGet("cc_favs",[]), over:lsGet("cc_over",{}), quick:lsGet("cc_quick",null),
   add:null, amt:null};
 const save={log(){lsSet("cc_log",S.log);},foods(){lsSet("cc_foods",S.foods);},meals(){lsSet("cc_meals",S.meals);},settings(){lsSet("cc_settings",S.settings);},favs(){lsSet("cc_favs",S.favs);},over(){lsSet("cc_over",S.over);},quick(){lsSet("cc_quick",S.quick);}};
+/* v4: plan now starts at 2,200 / 170 / 235 / 65 and steps down. If custom was set to exactly that, follow the plan again. */
+if(!S.settings.mig4){const c=S.settings.custom||[];if(S.settings.mode==="custom"&&c.join()==="2200,170,235,65")S.settings.mode="auto";S.settings.mig4=1;lsSet("cc_settings",S.settings);}
 /* Quick-add history: built once from past quick adds, then kept up to date */
 if(!S.quick){const seen={};S.quick=[];Object.keys(S.log).sort().reverse().forEach(d=>S.log[d].forEach(e=>{if(!e.fid&&!e.g){const k=(e.name||"").toLowerCase();if(!seen[k]){seen[k]=1;S.quick.push({id:uid(),name:e.name||"Quick add",kcal:e.kcal,p:e.p,c:e.c,f:e.f});}}}));save.quick();}
 function rememberQuick(q){const k=q.name.toLowerCase();S.quick=[Object.assign({id:uid()},q)].concat(S.quick.filter(x=>x.name.toLowerCase()!==k)).slice(0,40);save.quick();}
@@ -567,9 +593,10 @@ function macrosFor(f,g){return {kcal:f.k*g/100,p:f.p*g/100,c:f.c*g/100,f:f.f*g/1
 function weekOf(date){const d=daysBetween(S.settings.start,date);if(d<0)return 1;return Math.min(16,Math.floor(d/7)+1);}
 function phaseOf(w){return w<=6?1:w<=10?2:w<=14?3:w===15?4:3;}
 function targets(date){
+  const o=(S.settings.dayT||{})[date]; if(o)return {kcal:o[0],p:o[1],c:o[2],f:o[3]};
   if(S.settings.mode==="custom"){const c=S.settings.custom;return {kcal:c[0],p:c[1],c:c[2],f:c[3]};}
-  const w=weekOf(date); let t=WEEKT[1];
-  [1,6,7,11,15,16].forEach(k=>{if(w>=k)t=WEEKT[k];});
+  const w=weekOf(date), wt=getWT(); let t=wt[1];
+  [1,6,7,11,15,16].forEach(k=>{if(w>=k)t=wt[k];});
   let [kcal,p,c,f]=t;
   if(w===15){const dow=parseYmd(date).getDay(); if(dow===5||dow===6){c+=60;kcal+=240;}}
   return {kcal,p,c,f};
@@ -590,6 +617,7 @@ const IC={
   today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
   trends:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>',
   foods:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 11h16a8 8 0 0 1-16 0zM9 4c0 1.5 1 1.5 1 3M14 4c0 1.5 1 1.5 1 3"/></svg>',
+  recipes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>',
   gear:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>'
 };
 function backupAge(){return S.settings.lastBackup?daysBetween(S.settings.lastBackup.slice(0,10),ymd(new Date())):null;}
@@ -602,9 +630,9 @@ function topbar(){
     <button class="iconbtn" data-a="settings" aria-label="Settings and backup">${IC.gear}</button></div>`;
 }
 function renderTabs(){
-  $("#tabs").innerHTML='<div class="tabs-in" style="grid-template-columns:repeat(3,1fr)">'+[["today","Diary"],["trends","Trends"],["foods","My foods"]].map(([k,l])=>`<button class="tab${S.tab===k?" on":""}" data-a="tab" data-v="${k}">${IC[k]}${l}</button>`).join("")+'</div>';
+  $("#tabs").innerHTML='<div class="tabs-in" style="grid-template-columns:repeat(4,1fr)">'+[["today","Diary"],["recipes","Recipes"],["trends","Trends"],["foods","My foods"]].map(([k,l])=>`<button class="tab${S.tab===k?" on":""}" data-a="tab" data-v="${k}">${IC[k]}${l}</button>`).join("")+'</div>';
 }
-function render(){applyColor();renderTabs();$("#app").innerHTML=topbar()+(S.tab==="today"?viewToday():S.tab==="trends"?viewTrends():viewFoods());}
+function render(){applyColor();renderTabs();$("#app").innerHTML=topbar()+(S.tab==="today"?viewToday():S.tab==="recipes"?viewRecipes():S.tab==="trends"?viewTrends():viewFoods());}
 
 /* ===================== DIARY ===================== */
 function ring(eaten,target){
@@ -625,13 +653,13 @@ function viewToday(){
   const d=S.date, t=targets(d), list=entries(d), tot=totals(list), w=weekOf(d), ph=PHC[phaseOf(w)];
   let h=`<div class="row between" style="margin-bottom:12px"><button class="iconbtn" data-a="day" data-v="-1" aria-label="Previous day">&lsaquo;</button>
     <button data-a="today" style="text-align:center"><div class="num" style="font-size:26px;font-weight:800;line-height:1">${niceDate(d)}</div>
-    <div class="small muted">${S.settings.mode==="custom"?"Custom targets":(w>15?"March":"Week "+w)+" &middot; "+ph[2]}</div></button>
+    <div class="small muted">${(S.settings.dayT||{})[d]?"Edited for this day":S.settings.mode==="custom"?"Custom targets":(w>15?"March":"Week "+w)+" &middot; "+ph[2]}</div></button>
     <button class="iconbtn" data-a="day" data-v="1" aria-label="Next day">&rsaquo;</button></div>
   <div class="stack"><section class="hero"><div class="row" style="gap:14px">
       <div>${ring(tot.kcal,t.kcal)}</div>
       <div style="flex:1;display:grid;gap:10px">
         <div><div class="label">Eaten</div><div class="num" style="font-size:28px;font-weight:800;line-height:1">${R(tot.kcal).toLocaleString()}</div></div>
-        <div><div class="label">Target</div><div class="num" style="font-size:28px;font-weight:800;line-height:1">${t.kcal.toLocaleString()}</div></div>
+        <button class="tbtn" data-a="editT" aria-label="Edit targets"><div class="label">Target <span class="pen">Edit</span></div><div class="num" style="font-size:28px;font-weight:800;line-height:1">${t.kcal.toLocaleString()}</div></button>
       </div></div>
     <div class="stack" style="margin-top:14px;gap:12px">
       ${mbar("Protein",tot.p,t.p,"var(--phase)",true)}
@@ -824,7 +852,8 @@ function sheetSettings(){
   openSheet(`<h2>Settings</h2><div class="stack" style="margin-top:12px">
     <div class="field"><span class="label">Daily targets</span><div class="seg"><button class="${s.mode==="auto"?"on":""}" data-a="mode" data-v="auto">Follow my plan</button><button class="${s.mode==="custom"?"on":""}" data-a="mode" data-v="custom">Custom</button></div></div>
     <div id="set-auto" style="display:${s.mode==="auto"?"block":"none"}"><div class="field"><label class="label" for="set-start">Program start (a Monday)</label><input type="date" id="set-start" value="${esc(s.start)}"></div>
-      <p class="small muted" style="margin:8px 0 0">Targets change by week on their own. Today: ${t.kcal.toLocaleString()} kcal, ${t.p} g protein, ${t.c} g carbs, ${t.f} g fat.</p></div>
+      <p class="small muted" style="margin:8px 0 8px">Targets step down by week on their own. Today: ${t.kcal.toLocaleString()} kcal, ${t.p} g protein, ${t.c} g carbs, ${t.f} g fat.</p>
+      <button class="btn ghost block" data-a="planT">See and edit every week</button></div>
     <div id="set-custom" style="display:${s.mode==="custom"?"grid":"none"};grid-template-columns:repeat(2,1fr);gap:8px">${fld("t-k","Calories","","numeric",c[0])}${fld("t-p","Protein g","","numeric",c[1])}${fld("t-c","Carbs g","","numeric",c[2])}${fld("t-f","Fat g","","numeric",c[3])}</div>
     <div class="field"><span class="label">Suggested split by meal (%)</span>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${MEALS.map((m,i)=>`<div class="field"><label class="small muted" for="sp-${i}">${m}</label><input id="sp-${i}" inputmode="numeric" value="${(s.split||[25,30,30,15])[i]}"></div>`).join("")}</div>
@@ -838,7 +867,7 @@ function sheetSettings(){
     <input type="file" id="restore-file" accept=".json,application/json,text/plain" style="display:none">
     <button class="btn ghost block" data-a="restorePaste">Restore from pasted text</button></div>`);
 }
-function backupData(){return {app:"mexico-fuel",version:2,exported:new Date().toISOString(),settings:S.settings,log:S.log,foods:S.foods,meals:S.meals,favs:S.favs,over:S.over,quick:S.quick};}
+function backupData(){return {app:"mexico-fuel",version:3,exported:new Date().toISOString(),settings:S.settings,log:S.log,foods:S.foods,meals:S.meals,favs:S.favs,over:S.over,quick:S.quick,groc:S.groc};}
 function markBackup(){S.settings.lastBackup=new Date().toISOString();save.settings();render();}
 async function exportShare(){
   const txt=JSON.stringify(backupData()), name="mexico-fuel-backup-"+ymd(new Date())+".json";
@@ -863,6 +892,7 @@ function restoreFrom(txt){
     S.foods=byId(S.foods,d.foods);save.foods();S.meals=byId(S.meals,d.meals);save.meals();
     S.favs=[...new Set(S.favs.concat(d.favs||[]))];save.favs();S.over=Object.assign({},S.over,d.over||{});save.over();
     (d.quick||[]).slice().reverse().forEach(x=>{if(!S.quick.some(y=>y.name.toLowerCase()===x.name.toLowerCase()))S.quick.push(x);});save.quick();
+    if(d.groc&&d.groc.sel){S.groc=Object.assign({sel:{},got:{}},d.groc);save.groc();}
     if(d.settings){S.settings=Object.assign({},S.settings,d.settings,{lastBackup:S.settings.lastBackup||d.exported});save.settings();}
     render();toast("Backup restored");});
 }
@@ -915,6 +945,7 @@ function viewFoods(){
 document.addEventListener("click",ev=>{
   const t=ev.target.closest("[data-a]"); if(!t) return; const a=t.dataset.a, v=t.dataset.v;
   if(a==="bgclose"){if(ev.target===t)closeSheet();return;}
+  if(planEvent(a,v,t))return;
   switch(a){
     case "tab": S.tab=v; render(); window.scrollTo(0,0); break;
     case "day": S.date=addDays(S.date,+v); render(); break;
@@ -1009,12 +1040,300 @@ document.addEventListener("input",ev=>{
   const t=ev.target;
   if(t.id==="search"&&S.add){S.add.q=t.value;renderAdd(true);}
   if(t.id==="am-q"&&S.amt){S.amt.q=num(t.value);updAmount();}
+  if(/^tt-[pcf]$/.test(t.id))updTSum();
 });
 document.addEventListener("change",ev=>{
   const t=ev.target;
   if(t.id==="am-sv"&&S.amt){const A=S.amt,old=servings(A.f)[A.si],g=old[1]*A.q;A.si=+t.value;const nw=servings(A.f)[A.si];A.q=nw[0]==="Grams"?R(g):(old[0]==="Grams"?Math.max(0.25,Math.round(g/nw[1]*4)/4):1);renderAmount();}
   if(t.id==="restore-file"&&t.files&&t.files[0]){const r=new FileReader();r.onload=()=>restoreFrom(String(r.result));r.readAsText(t.files[0]);}
 });
+
+/* ===================== MEAL PLAN RECIPES =====================
+   Built for the plan targets. Every ingredient is in grams per serving.
+   Macros are worked out from the ingredients, so they always add up. */
+/* Extra ingredients not in the food list: [kcal, protein, carbs, fat] per 100 g, raw unless noted */
+const ING={
+ "Chicken thigh, boneless skinless (raw)":[140,19,0,7],
+ "Lean ground beef 93/7 (raw)":[152,21,0,7],
+ "Beef sirloin, thinly sliced (raw)":[150,22,0,6.5],
+ "Salmon fillet (raw)":[208,20,0,13],
+ "Shrimp, peeled (raw)":[85,20,0,0.5],
+ "Flour tortilla, large":[300,8,50,8],
+ "Mozzarella, part-skim, shredded":[254,24,3,16],
+ "Feta":[264,14,4,21],
+ "Bell pepper":[31,1,6,0.3],
+ "Cherry tomatoes":[18,0.9,3.9,0.2],
+ "Carrot":[41,0.9,9.6,0.2],
+ "Green onion":[32,1.8,7.3,0.2],
+ "Hummus":[166,7.9,14.3,9.6],
+ "Lemon juice":[22,0.4,6.9,0.2],
+ "Sweet potato noodles (dangmyeon), dry":[350,0.2,86,0.1],
+ "Sugar":[387,0,100,0],
+ "Rice vinegar":[18,0,0.8,0],
+ "Sesame seeds":[573,17.7,23.4,49.7],
+ "Gochugaru (chili flakes)":[300,12,55,10],
+ "Edamame, shelled":[121,11.9,8.9,5.2],
+ "Salsa":[36,1.5,7,0.2]
+};
+/* Grocery aisle for each ingredient */
+const AISLE={"Meat + fish":["Chicken thigh","Lean ground beef","Beef sirloin","Salmon","Shrimp","Costco rotisserie","Tuna"],
+ "Dairy + eggs":["Egg","Oikos","Greek yogurt","Milk","Cottage","Mozzarella","Feta","Parmesan"],
+ "Produce":["Spinach","Mushrooms","Bell pepper","Cherry tomatoes","Carrot","Green onion","Onion","Garlic","Zucchini","Bean sprouts","Broccoli","Cucumber","Lettuce","Avocado","Banana","Berries","Apple","Lemon"],
+ "Korean pantry":["Kimchi","Gochujang","Gochugaru","Soy sauce","Sesame","Doenjang","Tofu","Sweet potato noodles","Rice vinegar"],
+ "Grains + bread":["White rice","Pasta","Oats","Bread","Flour tortilla","Granola"],
+ "Pantry":["Olive oil","Honey","Sugar","Peanut butter","Whey","Marinara","Hummus","Salsa","Edamame"]};
+const AISLES=["Meat + fish","Produce","Dairy + eggs","Grains + bread","Korean pantry","Pantry"];
+function aisleOf(n){for(const a of AISLES){if(AISLE[a].some(k=>n.indexOf(k)===0))return a;}return "Pantry";}
+/* How to buy it, when the recipe weight is cooked */
+const BUY={"White rice, cooked":["dry rice",1/2.75]};
+const ROTI="Costco rotisserie chicken breast (no skin)";
+
+/* [id, name, korean, meal B/L/D/S, time, tags, ingredients [[name, grams, how much]], steps, tip] */
+const PLAN=[
+ ["oats","Protein overnight oats","","B","5 min + overnight",["Make ahead"],
+  [["Oats, dry",60,"2/3 cup"],["Oikos Pro plain 0% (high protein)",150,"2/3 cup"],["Whey protein powder",30,"1 scoop"],["Milk, 1%",120,"1/2 cup"],["Berries, mixed",100,"2/3 cup, frozen is fine"],["Honey",10,"1/2 tbsp"]],
+  ["In a jar, stir the oats, whey and milk until there are no lumps.","Stir in the yogurt and honey.","Top with the berries, close the lid and refrigerate overnight (at least 4 hours).","Eat cold, straight from the jar."],
+  "Make 3 jars on Sunday and breakfast is done until Wednesday."],
+ ["kfr","Kimchi egg fried rice","김치볶음밥","B","15 min",["Korean"],
+  [["White rice, cooked",180,"1 bowl, day-old is best"],["Kimchi (napa cabbage)",80,"1/2 cup, chopped"],["Egg, whole",100,"2 large"],["Egg whites",100,"about 1/2 cup"],["Green onion",15,"1 stalk"],["Gochujang",10,"1/2 tbsp"],["Soy sauce",5,"1 tsp"],["Sesame oil",5,"1 tsp"]],
+  ["Heat the sesame oil in a nonstick pan. Stir-fry the kimchi for 2 minutes.","Add the rice, gochujang and soy sauce. Toss for 3 minutes until hot.","Push the rice to one side, scramble the egg whites, then mix them in.","Plate it. Fry the 2 whole eggs in the same pan and put them on top.","Finish with sliced green onion."],
+  "Squeeze some kimchi juice in for more flavour without extra calories."],
+ ["scram","Veggie egg scramble + toast","","B","10 min",["High protein"],
+  [["Egg, whole",100,"2 large"],["Egg whites",150,"about 2/3 cup"],["Spinach",40,"1 big handful"],["Mushrooms",50,"4 to 5, sliced"],["Bell pepper",50,"1/3 pepper, diced"],["Feta",20,"2 tbsp crumbled"],["Bread, whole-grain",80,"2 slices"],["Olive oil",5,"1 tsp"]],
+  ["Heat the olive oil in a nonstick pan. Cook the mushrooms and pepper for 3 minutes.","Add the spinach and let it wilt.","Whisk the eggs and egg whites, pour in and stir gently until just set.","Crumble the feta on top. Serve with the toast."],
+  "Measure the oil with a spoon. A free pour is easily 3 times this."],
+ ["ybowl","Greek yogurt power bowl","","B","3 min",["No cook"],
+  [["Oikos Pro plain 0% (high protein)",300,"1 1/4 cups"],["Granola",40,"1/3 cup"],["Banana",100,"1 medium"],["Berries, mixed",75,"1/2 cup"],["Peanut butter",10,"2 tsp"]],
+  ["Spoon the yogurt into a bowl.","Top with sliced banana, berries and granola.","Drizzle the peanut butter over (warm it 10 seconds to make it runny)."],
+  "Skotidakis 0% plain works the same. Vanilla versions add about 40 kcal."],
+ ["burr","Breakfast burrito","","B","15 min",["Make ahead","Freezes well"],
+  [["Flour tortilla, large",70,"1 large (10 inch)"],["Egg, whole",100,"2 large"],["Egg whites",100,"about 1/2 cup"],["Mozzarella, part-skim, shredded",25,"1/4 cup"],["Bell pepper",40,"1/4 pepper, diced"],["Onion",30,"1/4 small onion, diced"],["Salsa",40,"2 tbsp"]],
+  ["Cook the pepper and onion in a nonstick pan with cooking spray for 3 minutes.","Add the eggs and egg whites and scramble until just set.","Warm the tortilla, add the eggs, cheese and salsa, and roll it up.","To freeze: wrap in foil. Reheat from frozen 2 minutes in the microwave, then crisp in a pan."],
+  "Make 5 at once for a week of grab-and-go breakfasts."],
+
+ ["aglio","Rotisserie chicken garlic pasta","","L","20 min",["Pasta","Costco chicken"],
+  [["Pasta, dry (weigh before cooking)",80,"weigh it dry"],[ROTI,150,"about 1 1/4 cups, shredded"],["Olive oil",10,"2 tsp"],["Garlic",10,"3 cloves, sliced"],["Broccoli, cooked",120,"about 1 1/2 cups florets"],["Parmesan, grated",10,"2 tbsp"],["Lemon juice",10,"2 tsp"]],
+  ["Boil the pasta in salted water. Add the broccoli for the last 3 minutes.","Meanwhile warm the olive oil and garlic on low heat until the garlic is golden. Add chili flakes if you like.","Drain, keeping half a cup of pasta water.","Toss the pasta, broccoli and chicken in the garlic oil with a splash of pasta water.","Finish with lemon juice and parmesan."],
+  "Pasta water makes it silky without adding oil."],
+ ["bibim","Chicken bibimbap bowl","비빔밥","L","25 min",["Korean","Meal prep"],
+  [["White rice, cooked",180,"1 bowl"],["Chicken thigh, boneless skinless (raw)",150,"about 2 thighs"],["Spinach",60,"2 handfuls"],["Bean sprouts",60,"1 cup"],["Carrot",40,"1/2 small, julienned"],["Zucchini",60,"1/3 zucchini, julienned"],["Egg, whole",50,"1 large"],["Gochujang",15,"1 tbsp"],["Soy sauce",10,"2 tsp"],["Sesame oil",5,"1 tsp"],["Garlic",5,"1 clove, minced"],["Sesame seeds",3,"1 tsp"]],
+  ["Season the chicken with soy sauce and garlic. Pan-fry 5 to 6 minutes per side, then slice.","Blanch the spinach and bean sprouts 1 minute. Squeeze dry.","Stir-fry the carrot and zucchini 2 minutes in a dry nonstick pan.","Fry the egg.","Rice in the bowl, veg and chicken on top, egg in the middle.","Mix the gochujang with the sesame oil and a splash of water, drizzle over, add sesame seeds."],
+  "Prep the chicken and veg for 3 days. Keep the egg fresh each day."],
+ ["tuna","Spicy tuna rice bowl","참치마요덮밥 (light)","L","10 min",["Korean","No cook"],
+  [["Tuna, canned in water",120,"1 can, drained"],["White rice, cooked",180,"1 bowl"],["Cucumber",80,"1/3 cucumber, diced"],["Avocado",40,"1/4 avocado"],["Oikos 0% plain Greek",30,"2 tbsp"],["Gochujang",10,"1/2 tbsp"],["Sesame oil",3,"1/2 tsp"],["Kimchi (napa cabbage)",50,"1/4 cup"]],
+  ["Mix the tuna with the yogurt, gochujang and sesame oil.","Rice in the bowl, spicy tuna on top.","Add cucumber, avocado and kimchi on the side."],
+  "Greek yogurt stands in for mayo here. Real mayo would add about 200 kcal."],
+ ["wrap","Rotisserie chicken hummus wrap + apple","","L","5 min",["Costco chicken","No cook"],
+  [["Flour tortilla, large",70,"1 large (10 inch)"],[ROTI,120,"about 1 cup, shredded"],["Hummus",30,"2 tbsp"],["Lettuce / ssam greens",40,"2 leaves, shredded"],["Cherry tomatoes",50,"5 tomatoes, halved"],["Cucumber",50,"1/4 cucumber"],["Feta",15,"1 1/2 tbsp"],["Apple",150,"1 medium, on the side"]],
+  ["Spread the hummus over the tortilla.","Add lettuce, chicken, tomatoes, cucumber and feta.","Fold in the sides and roll tight. Cut in half.","Eat the apple on the side."],
+  "Wrap in foil the night before. It holds well until lunch."],
+ ["bulb","Bulgogi rice bowl","불고기덮밥","L","20 min + marinate",["Korean","Meal prep"],
+  [["Beef sirloin, thinly sliced (raw)",150,"thin-sliced from a Korean grocer"],["Soy sauce",15,"1 tbsp"],["Honey",8,"1/2 tbsp"],["Garlic",8,"2 cloves, minced"],["Sesame oil",5,"1 tsp"],["Onion",50,"1/2 small, sliced"],["Green onion",15,"1 stalk"],["White rice, cooked",180,"1 bowl"],["Cucumber",80,"1/3 cucumber, on the side"],["Kimchi (napa cabbage)",50,"1/4 cup, on the side"]],
+  ["Mix the soy sauce, honey, garlic and sesame oil. Marinate the beef and onion 30 minutes (or overnight).","Cook in a very hot pan 4 to 5 minutes until the edges caramelize.","Add green onion at the end.","Serve over rice with cucumber and kimchi."],
+  "Grated Korean pear in the marinade is classic. Add 30 g for about 15 kcal."],
+
+ ["dakbul","Gochujang chicken + rice + broccoli","닭불고기","D","25 min",["Korean","High protein"],
+  [["Chicken thigh, boneless skinless (raw)",180,"2 to 3 thighs"],["Gochujang",20,"1 heaped tbsp"],["Soy sauce",10,"2 tsp"],["Honey",8,"1/2 tbsp"],["Garlic",8,"2 cloves, minced"],["Sesame oil",5,"1 tsp"],["White rice, cooked",180,"1 bowl"],["Broccoli, cooked",150,"about 2 cups florets"]],
+  ["Mix the gochujang, soy sauce, honey, garlic and sesame oil. Coat the chicken.","Pan-fry or air-fry at 400F for 18 to 20 minutes, turning once.","Steam the broccoli.","Slice the chicken and serve with rice and broccoli."],
+  "Air fryer gives the best char with no extra oil."],
+ ["bolo","Lean beef bolognese","","D","30 min",["Pasta","Meal prep"],
+  [["Lean ground beef 93/7 (raw)",130,"about 1/4 lb"],["Marinara / tomato sauce",150,"2/3 cup"],["Onion",50,"1/2 small, diced"],["Mushrooms",60,"5 to 6, chopped"],["Garlic",8,"2 cloves"],["Pasta, dry (weigh before cooking)",75,"weigh it dry"],["Parmesan, grated",10,"2 tbsp"],["Olive oil",5,"1 tsp"]],
+  ["Cook the onion, mushrooms and garlic in the olive oil for 5 minutes.","Add the beef and brown it, breaking it up.","Add the marinara and simmer 15 minutes.","Cook the pasta, toss with the sauce and top with parmesan."],
+  "Chopped mushrooms bulk up the sauce so the bowl looks bigger for the same calories."],
+ ["sundubu","Shrimp sundubu jjigae + rice","순두부찌개","D","20 min",["Korean","High protein"],
+  [["Tofu, soft (sundubu)",300,"1 tube"],["Shrimp, peeled (raw)",120,"about 8 large"],["Egg, whole",50,"1 large"],["Kimchi (napa cabbage)",60,"1/3 cup"],["Onion",40,"1/3 small"],["Zucchini",60,"1/3 zucchini"],["Gochugaru (chili flakes)",5,"2 tsp"],["Sesame oil",5,"1 tsp"],["Garlic",8,"2 cloves, minced"],["Soy sauce",10,"2 tsp"],["White rice, cooked",150,"a smaller bowl"]],
+  ["In a small pot, warm the sesame oil, gochugaru and garlic on low for 1 minute.","Add the kimchi and onion, cook 2 minutes.","Add 1 1/2 cups water and the soy sauce. Bring to a boil.","Add zucchini and shrimp, then spoon in the tofu in big chunks. Simmer 5 minutes.","Crack the egg on top, turn off the heat and serve with rice."],
+  "Big, filling bowl for the calories. Great on cold nights."],
+ ["salmon","Sesame salmon rice plate","","D","20 min",["High protein"],
+  [["Salmon fillet (raw)",150,"1 fillet"],["White rice, cooked",160,"a smaller bowl"],["Broccoli, cooked",120,"about 1 1/2 cups florets"],["Cucumber",100,"1/2 cucumber"],["Soy sauce",15,"1 tbsp"],["Honey",8,"1/2 tbsp"],["Rice vinegar",10,"2 tsp"],["Sesame seeds",3,"1 tsp"],["Garlic",5,"1 clove, minced"]],
+  ["Mix the soy sauce, honey and garlic. Brush over the salmon.","Bake at 400F for 12 to 14 minutes (or air fry 9 to 10 minutes).","Slice the cucumber and toss with rice vinegar and a pinch of salt.","Serve the salmon with rice, broccoli and cucumber salad. Top with sesame seeds."],
+  "Salmon has more fat than chicken, so keep the rest of the day's fat light."],
+ ["japchae","Lighter beef japchae","잡채","D","30 min",["Korean"],
+  [["Sweet potato noodles (dangmyeon), dry",60,"weigh it dry"],["Beef sirloin, thinly sliced (raw)",120,"thin strips"],["Spinach",80,"2 big handfuls"],["Carrot",40,"1/2 small, julienned"],["Onion",50,"1/2 small, sliced"],["Mushrooms",60,"shiitake, sliced"],["Bell pepper",50,"1/3 pepper, sliced"],["Soy sauce",20,"1 1/2 tbsp"],["Sesame oil",8,"2 tsp"],["Sugar",6,"1 1/2 tsp"],["Garlic",6,"2 cloves"],["Sesame seeds",3,"1 tsp"]],
+  ["Boil the noodles 6 to 7 minutes, rinse, and cut them shorter with scissors.","Blanch the spinach 30 seconds and squeeze dry.","Stir-fry the beef with half the soy sauce and the garlic. Set aside.","Stir-fry the onion, carrot, pepper and mushrooms 3 minutes.","Toss everything with the rest of the soy sauce, sugar and sesame oil. Top with sesame seeds."],
+  "Restaurant japchae uses about 3 times the oil. This keeps the flavour with less."],
+ ["kpasta","Chicken kimchi pasta","김치파스타","D","20 min",["Pasta","Korean","Costco chicken"],
+  [["Pasta, dry (weigh before cooking)",80,"weigh it dry"],[ROTI,130,"about 1 cup, shredded"],["Kimchi (napa cabbage)",80,"1/2 cup, chopped"],["Onion",40,"1/3 small, sliced"],["Garlic",8,"2 cloves"],["Olive oil",8,"2 tsp"],["Gochujang",10,"1/2 tbsp"],["Milk, 1%",60,"1/4 cup"],["Parmesan, grated",10,"2 tbsp"]],
+  ["Boil the pasta. Keep half a cup of pasta water.","Cook the onion and garlic in the olive oil 3 minutes. Add the kimchi, cook 3 more.","Stir in the gochujang and milk to make a creamy sauce.","Add the pasta, chicken and a splash of pasta water. Toss.","Top with parmesan."],
+  "Korean and Italian in one bowl, and it uses your Costco chicken."],
+
+ ["cott","Cottage cheese berry bowl","","S","2 min",["No cook"],
+  [["Cottage cheese, 2%",200,"3/4 cup"],["Berries, mixed",80,"1/2 cup"],["Honey",8,"1 tsp"]],
+  ["Spoon the cottage cheese into a bowl, top with berries and honey."],
+  "Good before bed: slow-digesting protein."],
+ ["shake","Protein shake + banana","","S","2 min",["Post-workout"],
+  [["Whey protein powder",30,"1 scoop"],["Milk, 1%",250,"1 cup"],["Banana",100,"1 medium"]],
+  ["Blend the whey, milk and banana with a few ice cubes. Or shake it and eat the banana on the side."],
+  "Have it within an hour or two after lifting."],
+ ["edam","Edamame + apple","","S","5 min",["High fibre"],
+  [["Edamame, shelled",120,"3/4 cup"],["Apple",150,"1 medium"]],
+  ["Microwave the frozen edamame 2 to 3 minutes with a splash of water. Salt lightly.","Slice the apple on the side."],
+  "Keep a bag of frozen shelled edamame from Costco in the freezer."],
+ ["ycup","Yogurt granola cup","","S","2 min",["No cook"],
+  [["Oikos Pro plain 0% (high protein)",200,"3/4 cup"],["Granola",30,"1/4 cup"],["Berries, mixed",50,"1/3 cup"]],
+  ["Layer the yogurt, berries and granola in a cup."],
+  "Keep the granola separate until you eat it so it stays crunchy."]
+];
+const PMEAL={B:"Breakfast",L:"Lunch",D:"Dinner",S:"Snacks"};
+function ingMacro(n){
+  if(ING[n]){const v=ING[n];return {k:v[0],p:v[1],c:v[2],f:v[3]};}
+  const x=F.find(r=>r[0]===n); if(x)return {k:x[3],p:x[4],c:x[5],f:x[6]};
+  return {k:0,p:0,c:0,f:0};
+}
+function planMacros(r){return r[6].reduce((t,[n,g])=>{const m=ingMacro(n);return {kcal:t.kcal+m.k*g/100,p:t.p+m.p*g/100,c:t.c+m.c*g/100,f:t.f+m.f*g/100};},{kcal:0,p:0,c:0,f:0});}
+function ingLabel(n){return n.replace(" (weigh before cooking)","").replace(" (high protein)","").replace(" (napa cabbage)","").replace(" / ssam greens","").replace(" / tomato sauce","");}
+/* Register each recipe as a set meal so it can be searched, starred and logged anywhere */
+SETTYPES.splice(1,0,["plan","Plan recipes"]);
+PLAN.forEach(r=>{
+  const m=planMacros(r);
+  SETMEALS.push([r[1],r[2],"plan",r[3],R(m.kcal),R(m.p),R(m.c),R(m.f),r[6].map(([n,g])=>g+" g "+ingLabel(n).toLowerCase()).join(", "),0,"plan:"+r[0]]);
+  RECIPES["plan:"+r[0]]={s:"1 serving",i:r[6].map(([n,g,h])=>g+" g "+ingLabel(n)+(h?" ("+h+")":"")),st:r[7],n:r[8]};
+});
+const planById=id=>PLAN.find(r=>r[0]===id);
+
+/* Grocery list state: selected recipes with servings, and items ticked off */
+S.groc=Object.assign({sel:{},got:{}},lsGet("cc_groc",{}));
+save.groc=()=>lsSet("cc_groc",S.groc);
+S.rtab=S.rtab||"B";
+
+function rMacros(r){const f=foodById(r[1]);return f?{kcal:f.k,p:f.p,c:f.c,f:f.f,edited:f.edited}:planMacros(r);}
+function macroBoxes(m,q){q=q||1;return `<div class="mstat"><div><b>${R(m.kcal*q)}</b><span>kcal</span></div><div><b>${R(m.p*q)}</b><span>protein g</span></div><div><b>${R(m.c*q)}</b><span>carbs g</span></div><div><b>${R(m.f*q)}</b><span>fat g</span></div></div>`;}
+function grocCount(){return Object.keys(S.groc.sel).length;}
+function viewRecipes(){
+  const tab=S.rtab, gc=grocCount();
+  let h=`<div class="row between" style="margin-bottom:4px"><h1 class="num" style="font-size:34px;font-weight:800;margin:0">Recipes</h1><button class="btn sm ${tab==="G"?"primary":"ghost"}" data-a="rtab" data-v="G">Grocery list${gc?" \u00b7 "+gc:""}</button></div>
+    <p class="small muted" style="margin:0 0 12px">Built for your targets. Grams are per serving. Tap a recipe for the steps, then log it or add it to your grocery list.</p>
+    <div class="seg rseg">${[["B","Breakfast"],["L","Lunch"],["D","Dinner"],["S","Snacks"]].map(([k,l])=>`<button class="${tab===k?"on":""}" data-a="rtab" data-v="${k}">${l}</button>`).join("")}</div>`;
+  if(tab==="G") return h+viewGrocery();
+  const sug=mealTarget(S.date,PMEAL[tab]);
+  h+=`<p class="small muted" style="margin:10px 2px">Your ${PMEAL[tab].toLowerCase()} target today: <b style="color:var(--text)">about ${sug} kcal</b></p><div class="stack">`;
+  PLAN.filter(r=>r[3]===tab).forEach(r=>{
+    const m=rMacros(r), inList=!!S.groc.sel[r[0]], fits=m.kcal<=sug*1.1;
+    h+=`<section class="card rcard"><button class="rbody" data-a="rOpen" data-v="${r[0]}">
+      <div class="row between" style="align-items:flex-start;gap:10px"><div style="min-width:0"><div class="htitle" style="font-size:21px">${esc(r[1])}</div>
+        <div class="small muted">${r[2]?esc(r[2])+" · ":""}${esc(r[4])}</div></div>
+        <div class="ek"><b class="num">${R(m.kcal)}</b><span class="small muted">kcal</span></div></div>
+      <div class="small" style="margin-top:6px"><b>${R(m.p)} g</b> protein · <b>${R(m.c)} g</b> carbs · <b>${R(m.f)} g</b> fat</div>
+      <div class="tags">${fits?'<span class="tg ok">Fits</span>':'<span class="tg">Big meal</span>'}${m.edited?'<span class="tg">Edited</span>':""}${r[5].map(t=>`<span class="tg">${esc(t)}</span>`).join("")}</div>
+      <div class="small muted clamp" style="margin-top:6px">${r[6].map(([n,g])=>g+" g "+esc(ingLabel(n).toLowerCase())).join(", ")}</div></button>
+      <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm primary" style="flex:1" data-a="rLog" data-v="${r[0]}">Log to ${PMEAL[r[3]].toLowerCase()}</button>
+        <button class="btn sm ${inList?"":"ghost"}" style="flex:1" data-a="rList" data-v="${r[0]}">${inList?"✓ On grocery list":"+ Grocery list"}</button></div></section>`;
+  });
+  return h+`</div><p class="small muted" style="margin:14px 4px">Raw weights for meat and fish. Rice is cooked weight, pasta and noodles are dry. Find these under Set meals → Plan recipes when adding food, and tap ☆ to favourite.</p>`;
+}
+function sheetRecipe(id,q,meal){
+  const r=planById(id); if(!r)return; q=q||1; meal=meal||PMEAL[r[3]]; S.rsheet={id,q,meal};
+  const m=rMacros(r), inList=S.groc.sel[id], old=$(".sheet"), keep=old&&old.dataset.rid===id?old.scrollTop:0;
+  openSheet(`<div class="guide"><h2 style="margin-bottom:2px">${esc(r[1])}</h2><p class="small muted" style="margin:0 0 10px">${r[2]?esc(r[2])+" · ":""}${esc(r[4])}${m.edited?" · <b style='color:var(--warn)'>your edited values</b>":""}</p>
+    <div class="row between" style="margin-bottom:10px"><span class="label">Servings</span><div class="row" style="gap:6px"><button class="iconbtn" data-a="rQ" data-v="-1" aria-label="Fewer servings">−</button><b class="num" style="font-size:24px;min-width:28px;text-align:center">${q}</b><button class="iconbtn" data-a="rQ" data-v="1" aria-label="More servings">+</button></div></div>
+    ${macroBoxes(m,q)}
+    <p class="small muted" style="margin:6px 0 0">${q>1?"Total for "+q+" servings. ":""}Per serving: ${R(m.kcal)} kcal.</p>
+    <h3>Ingredients</h3>
+    <div class="card" style="padding:4px 14px;background:var(--bg)">${r[6].map(([n,g,hint])=>{const b=BUY[n];return `<div class="ing"><b class="num">${R(g*q)} g</b><span><span>${esc(ingLabel(n))}</span><span class="small muted">${esc(hint||"")}${b?" · about "+R(g*q*b[1])+" g "+b[0]:""}</span></span></div>`;}).join("")}</div>
+    <h3>Steps</h3><ol>${r[7].map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
+    ${r[8]?`<p class="small" style="margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--surface-2)"><b>Tip:</b> ${esc(r[8])}</p>`:""}
+    <h3>Log it</h3>
+    <div class="seg" style="margin-bottom:8px">${MEALS.map(x=>`<button class="${meal===x?"on":""}" data-a="rMeal" data-v="${x}">${x==="Snacks"?"Snack":x}</button>`).join("")}</div>
+    <div class="stack"><button class="btn primary block" data-a="rLogQ">Log ${q} serving${q>1?"s":""} to ${meal.toLowerCase()} · ${R(m.kcal*q)} kcal</button>
+    <button class="btn block ${inList?"":"ghost"}" data-a="rListQ">${inList?"Update grocery list to "+q+" serving"+(q>1?"s":""):"Add "+q+" serving"+(q>1?"s":"")+" to grocery list"}</button>
+    ${inList?`<button class="btn ghost block" data-a="rUnlist">Remove from grocery list</button>`:""}
+    <button class="btn ghost block" data-a="closeSheet">Close</button></div></div>`);
+  const sh=$(".sheet"); if(sh){sh.dataset.rid=id; sh.scrollTop=keep;}
+}
+function grocItems(){
+  const items={};
+  Object.entries(S.groc.sel).forEach(([id,q])=>{const r=planById(id);if(!r)return;r[6].forEach(([n,g])=>{const k=ingLabel(n).replace(/, cooked| \(raw\)|, dry/,"");(items[k]=items[k]||{n:k,raw:n,g:0,from:[]}).g+=g*q;if(items[k].from.indexOf(r[1])<0)items[k].from.push(r[1]);});});
+  return Object.values(items);
+}
+function grocAmount(it){const b=BUY[it.raw];return b?R(it.g*b[1])+" g "+b[0]+" (makes "+R(it.g)+" g cooked)":R(it.g)+" g";}
+function viewGrocery(){
+  const sel=Object.entries(S.groc.sel).filter(([id])=>planById(id));
+  if(!sel.length) return `<div class="card" style="margin-top:12px"><div class="empty">Your grocery list is empty. Open any recipe and tap <b>+ Grocery list</b>. Pick how many servings you will cook and the grams add up here.</div></div>`;
+  const items=grocItems(), got=S.groc.got;
+  let h=`<div class="label" style="margin:14px 0 8px">Cooking this week</div><div class="card" style="padding:4px 14px">${sel.map(([id,q])=>{const r=planById(id);return `<div class="ing" style="align-items:center"><span style="flex:1;min-width:0"><span class="en">${esc(r[1])}</span><span class="small muted">${PMEAL[r[3]]} · ${R(rMacros(r).kcal)} kcal each</span></span>
+    <div class="row" style="gap:4px;flex:none"><button class="iconbtn sm" data-a="gQ" data-v="${id}|-1" aria-label="Fewer">−</button><b class="num" style="font-size:20px;min-width:22px;text-align:center">${q}</b><button class="iconbtn sm" data-a="gQ" data-v="${id}|1" aria-label="More">+</button></div></div>`;}).join("")}</div>`;
+  const left=items.filter(i=>!got[i.n]).length;
+  h+=`<div class="row between" style="margin:16px 0 8px"><span class="label">Shopping list · ${left} left</span><button class="btn sm ghost" data-a="gCopy">Copy list</button></div>`;
+  AISLES.forEach(a=>{const list=items.filter(i=>aisleOf(i.raw)===a).sort((x,y)=>x.n.localeCompare(y.n)); if(!list.length)return;
+    h+=`<div class="small muted" style="margin:10px 2px 4px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${a}</div><div class="card" style="padding:2px 12px">${list.map(i=>`<button class="gi${got[i.n]?" got":""}" data-a="gGot" data-v="${esc(i.n)}"><span class="ck">${got[i.n]?"✓":""}</span><span style="flex:1;min-width:0;text-align:left"><span class="en">${esc(i.n)}</span><span class="small muted">${esc(i.from.join(", "))}</span></span><b class="num" style="font-size:17px;text-align:right">${esc(grocAmount(i))}</b></button>`).join("")}</div>`;});
+  h+=`<div class="stack" style="margin-top:14px"><button class="btn ghost block" data-a="gClearGot">Untick everything</button><button class="btn danger block" data-a="gClear">Clear grocery list</button></div>
+    <p class="small muted" style="margin:12px 4px">A Costco rotisserie chicken gives roughly 700 to 800 g of meat. Spices, salt and cooking spray are not listed.</p>`;
+  return h;
+}
+function grocText(){
+  const items=grocItems(); let t="Grocery list\n";
+  AISLES.forEach(a=>{const list=items.filter(i=>aisleOf(i.raw)===a&&!S.groc.got[i.n]); if(!list.length)return; t+="\n"+a+"\n"+list.map(i=>"- "+i.n+": "+grocAmount(i)).join("\n")+"\n";});
+  return t;
+}
+function logRecipe(id,q,meal){const r=planById(id),f=r&&foodById(r[1]);if(!f)return;const e=entryFromFood(f,100*q,"1 meal",q);addEntry(S.date,meal,e);toast("Logged "+R(e.kcal)+" kcal to "+meal.toLowerCase());}
+
+/* ===================== ADJUSTABLE TARGETS ===================== */
+const BLOCKS=[[1,"Weeks 1-5","Foundation"],[6,"Week 6","Refeed week"],[7,"Weeks 7-10","Build"],[11,"Weeks 11-14","Sharpen"],[15,"Week 15","Peak week"],[16,"March","Trip"]];
+function blockOf(w){let b=1;BLOCKS.forEach(([k])=>{if(w>=k)b=k;});return b;}
+function blockName(k){const b=BLOCKS.find(x=>x[0]===k);return b?b[1]:"";}
+function sheetTargets(){
+  const d=S.date, t=targets(d), w=weekOf(d), bk=blockOf(w), dayO=(S.settings.dayT||{})[d], blockO=(S.settings.weekT||{})[bk];
+  const scope=S.tscope||(dayO?"day":S.settings.mode==="custom"?"all":"block");
+  openSheet(`<h2>Targets</h2><p class="small muted" style="margin:0 0 10px">${niceDate(d)}${S.settings.mode==="custom"?" · custom every day":" · "+blockName(bk)}${dayO?" · <b style='color:var(--warn)'>edited for this day</b>":""}</p>
+    <div class="stack">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">${fld("tt-k","Calories","","numeric",t.kcal)}${fld("tt-p","Protein g","","numeric",t.p)}${fld("tt-c","Carbs g","","numeric",t.c)}${fld("tt-f","Fat g","","numeric",t.f)}</div>
+    <div class="row between small" style="gap:8px"><span class="muted" id="tt-sum">Macros add up to ${R(t.p*4+t.c*4+t.f*9).toLocaleString()} kcal</span><button class="btn sm ghost" data-a="ttMatch">Use this</button></div>
+    <div class="field"><span class="label">Apply to</span><div class="seg">
+      <button class="${scope==="day"?"on":""}" data-a="tScope" data-v="day">This day</button>
+      <button class="${scope==="block"?"on":""}" data-a="tScope" data-v="block">${S.settings.mode==="custom"?"My plan":blockName(bk)}</button>
+      <button class="${scope==="all"?"on":""}" data-a="tScope" data-v="all">Every day</button></div>
+      <p class="small muted" style="margin:6px 0 0" id="tt-help">${scopeHelp(scope,bk)}</p></div>
+    <button class="btn primary block" data-a="ttSave">Save targets</button>
+    ${dayO?`<button class="btn ghost block" data-a="ttResetDay">Undo edit for this day</button>`:""}
+    ${blockO&&S.settings.mode!=="custom"?`<button class="btn ghost block" data-a="ttResetBlock">Reset ${blockName(bk)} to the plan</button>`:""}
+    <button class="btn ghost block" data-a="planT">See and edit every week</button>
+    <button class="btn ghost block" data-a="closeSheet">Cancel</button></div>`);
+  S.tscope=scope;
+}
+function scopeHelp(s,bk){return s==="day"?"Only this date changes. Good for a big dinner out or a refeed day.":s==="block"?(S.settings.mode==="custom"?"Switches back to the plan and changes "+blockName(bk)+" to these numbers.":"Every day in "+blockName(bk)+" uses these numbers. Later weeks still step down."):"Same numbers every day. Turns off the weekly step-down.";}
+function sheetPlanT(){
+  const wt=getWT();
+  openSheet(`<h2>Plan by week</h2><p class="small muted" style="margin:0 0 10px">These step down as the cut goes on. Change any number and save. Week 15 adds 60 g carbs on Friday and Saturday on its own.</p>
+    <div class="stack">${BLOCKS.map(([k,l,sub])=>{const v=wt[k];return `<div class="card" style="padding:10px 12px;background:var(--bg)"><div class="row between" style="margin-bottom:6px"><b>${l}</b><span class="small muted">${sub}${(S.settings.weekT||{})[k]?" · edited":""}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">${["kcal","Protein","Carbs","Fat"].map((n,i)=>`<div class="field"><label class="small muted" for="pw-${k}-${i}">${n}</label><input id="pw-${k}-${i}" inputmode="numeric" value="${v[i]}"></div>`).join("")}</div></div>`;}).join("")}
+    <button class="btn primary block" data-a="planSave">Save plan</button>
+    <button class="btn ghost block" data-a="planReset">Reset every week to the original plan</button>
+    <button class="btn ghost block" data-a="closeSheet">Cancel</button></div>`);
+}
+function readT(){return [num($("#tt-k").value),num($("#tt-p").value),num($("#tt-c").value),num($("#tt-f").value)].map(R);}
+function planEvent(a,v,t){
+  switch(a){
+    case "rtab": S.rtab=v; render(); window.scrollTo(0,0); return true;
+    case "rOpen": sheetRecipe(v); return true;
+    case "rLog": {const r=planById(v); logRecipe(v,1,PMEAL[r[3]]); return true;}
+    case "rList": {if(S.groc.sel[v])delete S.groc.sel[v]; else {S.groc.sel[v]=1;toast("Added to grocery list");} save.groc(); render(); return true;}
+    case "rQ": {const R0=S.rsheet; sheetRecipe(R0.id,Math.max(1,Math.min(10,R0.q+(+v))),R0.meal); return true;}
+    case "rMeal": {const R0=S.rsheet; sheetRecipe(R0.id,R0.q,v); return true;}
+    case "rLogQ": {const R0=S.rsheet; logRecipe(R0.id,R0.q,R0.meal); closeSheet(); render(); return true;}
+    case "rListQ": {const R0=S.rsheet; S.groc.sel[R0.id]=R0.q; save.groc(); toast("Grocery list updated"); closeSheet(); render(); return true;}
+    case "rUnlist": {delete S.groc.sel[S.rsheet.id]; save.groc(); closeSheet(); render(); return true;}
+    case "gQ": {const [id,d]=v.split("|"); const q=(S.groc.sel[id]||1)+(+d); if(q<1)delete S.groc.sel[id]; else S.groc.sel[id]=Math.min(10,q); save.groc(); render(); return true;}
+    case "gGot": {if(S.groc.got[v])delete S.groc.got[v]; else S.groc.got[v]=1; save.groc(); render(); return true;}
+    case "gClearGot": S.groc.got={}; save.groc(); render(); return true;
+    case "gClear": sheetConfirm("Clear grocery list?","Removes every recipe from the list. Your recipes stay.","Clear",()=>{S.groc={sel:{},got:{}};save.groc();render();}); return true;
+    case "gCopy": {const txt=grocText(); (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Copied. Paste into Notes or Reminders.")).catch(()=>{openSheet(`<h2>Grocery list</h2><textarea class="ta" readonly>${esc(txt)}</textarea><button class="btn ghost block" style="margin-top:10px" data-a="closeSheet">Close</button>`);}); return true;}
+    case "editT": S.tscope=null; sheetTargets(); return true;
+    case "tScope": S.tscope=v; t.parentElement.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===t)); $("#tt-help").textContent=scopeHelp(v,blockOf(weekOf(S.date))); return true;
+    case "ttMatch": {const c=readT(); $("#tt-k").value=R(c[1]*4+c[2]*4+c[3]*9); updTSum(); return true;}
+    case "ttSave": {const c=readT(); if(!(c[0]>0)){toast("Enter calories");return true;} const st=S.settings, sc=S.tscope;
+      if(sc==="day"){st.dayT=Object.assign({},st.dayT||{},{[S.date]:c});}
+      else if(sc==="block"){st.mode="auto"; st.weekT=Object.assign({},st.weekT||{},{[blockOf(weekOf(S.date))]:c}); if(st.dayT)delete st.dayT[S.date];}
+      else {st.mode="custom"; st.custom=c; if(st.dayT)delete st.dayT[S.date];}
+      save.settings(); closeSheet(); render(); toast("Targets saved"); return true;}
+    case "ttResetDay": delete S.settings.dayT[S.date]; save.settings(); closeSheet(); render(); toast("Back to the plan for this day"); return true;
+    case "ttResetBlock": delete S.settings.weekT[blockOf(weekOf(S.date))]; save.settings(); closeSheet(); render(); toast("Reset to the plan"); return true;
+    case "planT": sheetPlanT(); return true;
+    case "planSave": {const o={}; BLOCKS.forEach(([k])=>{const c=[0,1,2,3].map(i=>R(num($("#pw-"+k+"-"+i).value))); const d=WEEKT[k]; if(c[0]>0&&c.some((x,i)=>x!==d[i]))o[k]=c;}); S.settings.weekT=o; S.settings.mode="auto"; save.settings(); closeSheet(); render(); toast("Plan saved"); return true;}
+    case "planReset": sheetConfirm("Reset the plan?","Every week goes back to the original numbers. Days you edited one by one stay edited.","Reset",()=>{S.settings.weekT={};save.settings();render();toast("Plan reset");}); return true;
+  }
+  return false;
+}
+function updTSum(){const c=readT(),el=$("#tt-sum"); if(el)el.textContent="Macros add up to "+R(c[1]*4+c[2]*4+c[3]*9).toLocaleString()+" kcal";}
 
 /* ===================== BOOT ===================== */
 render();

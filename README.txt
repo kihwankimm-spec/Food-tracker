@@ -1,10 +1,8 @@
-MEXICO FUEL - update (quick-add history, edit macros on any entry, no more zooming)
+Mexico Fuel update 3
 
-TO UPDATE YOUR APP ON GITHUB
-1. Open github.com/kihwankimm-spec/Food-tracker
-2. Add file > Upload files
-3. Drag in index.html (same name, it replaces the old one)
-4. Commit changes
-5. Wait 1-2 minutes. On your iPhone, open the app, close it fully, open it again.
+To update:
+1. Open github.com > your Food-tracker repository.
+2. Add file > Upload files > choose index.html from this zip > Commit changes.
+3. Wait about a minute, then open the app on your iPhone. If it still shows the old version, close it fully and open it again.
 
-Your diary is not touched by updating.
+Nothing else changes. Your diary, favourites and edited foods stay on your phone.
